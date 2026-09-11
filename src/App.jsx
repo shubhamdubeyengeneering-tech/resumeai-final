@@ -4,7 +4,7 @@ import "./App.css";
 const API_URL =
   window.location.hostname === "localhost"
     ? "http://127.0.0.1:8000"
-    : "https://resume-ai-analyer.onrender.com";
+    : "https://resumeai-final.onrender.com";
 
 const SECTION_LIST = [
   ["contact", "Contact"],
