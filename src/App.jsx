@@ -209,14 +209,19 @@ function WorkspaceModules({ page, currentUser, onNavigate }) {
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+
   const [mockRole, setMockRole] = useState("Software Engineer");
   const [mockSession, setMockSession] = useState(null);
   const [mockAnswer, setMockAnswer] = useState("");
-  const [mockResult, setMockResult] = useState(null);
+  const [mockEvaluation, setMockEvaluation] = useState(null);
+  const [mockHistory, setMockHistory] = useState([]);
+  const [mockFinal, setMockFinal] = useState(null);
+
   const [jobs, setJobs] = useState([]);
   const [jobSearch, setJobSearch] = useState("");
   const [applications, setApplications] = useState([]);
   const [appForm, setAppForm] = useState({ company: "", role: "", location: "", url: "", status: "Applied", notes: "" });
+
   const [profile, setProfile] = useState({ name: currentUser?.name || "", email: currentUser?.email || "", phone: "", location: "", headline: "", bio: "", skills: "" });
   const [settings, setSettings] = useState({ email_notifications: true, weekly_summary: true, language: "English" });
   const [analytics, setAnalytics] = useState(null);
@@ -235,92 +240,217 @@ function WorkspaceModules({ page, currentUser, onNavigate }) {
   useEffect(() => {
     if (!currentUser || !token) return;
     setMessage("");
-    if (page === "applications") api("/api/applications").then(d => setApplications(d.applications || [])).catch(e => setMessage(e.message));
-    if (page === "profile") api("/api/profile").then(d => setProfile(d.profile)).catch(e => setMessage(e.message));
-    if (page === "settings") api("/api/settings").then(d => setSettings(d.settings)).catch(e => setMessage(e.message));
-    if (page === "analytics") api("/api/analytics").then(d => setAnalytics(d.analytics)).catch(e => setMessage(e.message));
-    if (page === "premium") api("/api/premium/status").then(setPremium).catch(e => setMessage(e.message));
-    if (page === "jobs") loadJobs("");
-    if (page === "mocks") {
-      api("/api/mocks").then(d => {
-        const latest = (d.sessions || [])[0];
-        if (latest && !latest.score) setMockSession({ id: latest.id, question: latest.question, role: latest.role });
-      }).catch(() => {});
+
+    if (page === "applications") {
+      api("/api/applications").then(d => setApplications(d.applications || [])).catch(e => setMessage(e.message));
+    } else if (page === "profile") {
+      api("/api/profile").then(d => setProfile(d.profile || {})).catch(e => setMessage(e.message));
+    } else if (page === "settings") {
+      api("/api/settings").then(d => setSettings(d.settings || {})).catch(e => setMessage(e.message));
+    } else if (page === "analytics") {
+      api("/api/analytics").then(d => setAnalytics(d.analytics || {})).catch(e => setMessage(e.message));
+    } else if (page === "premium") {
+      api("/api/premium/status").then(setPremium).catch(e => setMessage(e.message));
+    } else if (page === "jobs") {
+      loadJobs("");
     }
   }, [page, currentUser]);
 
   async function loadJobs(search) {
     if (!currentUser) return onNavigate("login");
-    setBusy(true); setMessage("");
-    try { const d = await api(`/api/jobs?search=${encodeURIComponent(search)}`); setJobs(d.jobs || []); }
-    catch (e) { setMessage(e.message); }
-    finally { setBusy(false); }
+    setBusy(true);
+    setMessage("");
+    try {
+      const d = await api(`/api/jobs?search=${encodeURIComponent(search)}`);
+      setJobs(d.jobs || []);
+    } catch (e) {
+      setMessage(e.message);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function startMock() {
     if (!currentUser) return onNavigate("login");
-    setBusy(true); setMessage(""); setMockResult(null); setMockAnswer("");
-    try { const d = await api("/api/mocks/start", { method: "POST", body: JSON.stringify({ role: mockRole }) }); setMockSession({ id: d.session_id, question: d.question, role: d.role }); }
-    catch (e) { setMessage(e.message); }
-    finally { setBusy(false); }
+    setBusy(true);
+    setMessage("");
+    setMockAnswer("");
+    setMockEvaluation(null);
+    setMockFinal(null);
+    setMockHistory([]);
+    try {
+      const d = await api("/api/mock/start", { method: "POST", body: JSON.stringify({ role: mockRole }) });
+      setMockSession({ id: d.session_id, question: d.question, role: d.role, question_number: d.question_number || 1, total_questions: d.total_questions || 10 });
+    } catch (e) {
+      setMessage(e.message);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function submitMock() {
     if (!mockSession || !mockAnswer.trim()) return;
-    setBusy(true); setMessage("");
-    try { const d = await api(`/api/mocks/${mockSession.id}/answer`, { method: "POST", body: JSON.stringify({ answer: mockAnswer }) }); setMockResult(d); }
-    catch (e) { setMessage(e.message); }
-    finally { setBusy(false); }
+    setBusy(true);
+    setMessage("");
+    try {
+      const d = await api(`/api/mock/${mockSession.id}/answer`, { method: "POST", body: JSON.stringify({ answer: mockAnswer.trim() }) });
+      setMockEvaluation(d.evaluation || null);
+      setMockHistory(prev => [...prev, { question: mockSession.question, answer: mockAnswer.trim(), ...(d.evaluation || {}) }]);
+      setMockAnswer("");
+
+      if (d.completed || d.final_result) {
+        setMockFinal(d.final_result || d);
+        setMockSession(null);
+      } else {
+        setMockSession(prev => ({ ...prev, question: d.next_question, question_number: d.question_number || ((prev?.question_number || 1) + 1), total_questions: d.total_questions || 10 }));
+      }
+    } catch (e) {
+      setMessage(e.message);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function saveApplication(e) {
-    e.preventDefault(); setBusy(true); setMessage("");
-    try { const d = await api("/api/applications", { method: "POST", body: JSON.stringify(appForm) }); setApplications(prev => [d.application, ...prev]); setAppForm({ company: "", role: "", location: "", url: "", status: "Applied", notes: "" }); }
-    catch (e) { setMessage(e.message); }
-    finally { setBusy(false); }
+    e.preventDefault();
+    setBusy(true);
+    setMessage("");
+    try {
+      const d = await api("/api/applications", { method: "POST", body: JSON.stringify(appForm) });
+      setApplications(prev => [d.application, ...prev]);
+      setAppForm({ company: "", role: "", location: "", url: "", status: "Applied", notes: "" });
+      setMessage("Application saved successfully.");
+    } catch (e) {
+      setMessage(e.message);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function updateApplication(id, status) {
-    try { const d = await api(`/api/applications/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }); setApplications(prev => prev.map(a => a.id === id ? d.application : a)); }
-    catch (e) { setMessage(e.message); }
+    try {
+      const d = await api(`/api/applications/${id}`, { method: "PATCH", body: JSON.stringify({ status }) });
+      setApplications(prev => prev.map(a => a.id === id ? d.application : a));
+    } catch (e) {
+      setMessage(e.message);
+    }
   }
 
   async function deleteApplication(id) {
-    try { await api(`/api/applications/${id}`, { method: "DELETE" }); setApplications(prev => prev.filter(a => a.id !== id)); }
-    catch (e) { setMessage(e.message); }
+    try {
+      await api(`/api/applications/${id}`, { method: "DELETE" });
+      setApplications(prev => prev.filter(a => a.id !== id));
+    } catch (e) {
+      setMessage(e.message);
+    }
   }
 
   async function saveProfile(e) {
-    e.preventDefault(); setBusy(true); setMessage("");
-    try { await api("/api/profile", { method: "PUT", body: JSON.stringify(profile) }); localStorage.setItem("resumeai_user", JSON.stringify({ ...currentUser, name: profile.name })); setMessage("Profile saved successfully."); }
-    catch (e) { setMessage(e.message); }
-    finally { setBusy(false); }
+    e.preventDefault();
+    setBusy(true);
+    setMessage("");
+    try {
+      await api("/api/profile", { method: "PUT", body: JSON.stringify(profile) });
+      const updatedUser = { ...currentUser, name: profile.name };
+      localStorage.setItem("resumeai_user", JSON.stringify(updatedUser));
+      setMessage("Profile saved successfully.");
+    } catch (e) {
+      setMessage(e.message);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function saveSettings(e) {
-    e.preventDefault(); setBusy(true); setMessage("");
-    try { await api("/api/settings", { method: "PUT", body: JSON.stringify(settings) }); setMessage("Settings saved successfully."); }
-    catch (e) { setMessage(e.message); }
-    finally { setBusy(false); }
+    e.preventDefault();
+    setBusy(true);
+    setMessage("");
+    try {
+      await api("/api/settings", { method: "PUT", body: JSON.stringify(settings) });
+      setMessage("Settings saved successfully.");
+    } catch (e) {
+      setMessage(e.message);
+    } finally {
+      setBusy(false);
+    }
   }
 
-  if (!currentUser && !["resources"].includes(page)) {
-    return <SimplePage title="Login required" icon="🔐" description="Create an account or sign in to use this workspace feature."><div className="workspace-module"><p>Please log in first so your data can be saved to your account.</p><button className="workspace-primary" onClick={() => onNavigate("login")}>Login →</button></div></SimplePage>;
+  if (!currentUser) {
+    return <SimplePage title="Login required" icon="🔐" description="Sign in to use this workspace feature."><div className="workspace-module"><p>Please log in first so your data can be saved to your account.</p><button className="workspace-primary" onClick={() => onNavigate("login")}>Login →</button></div></SimplePage>;
   }
 
-  if (page === "mocks") return <SimplePage title="Mock Interviews" icon="🎤" description="Practice interview answers and receive an objective score."><div className="workspace-module"><label>Target role</label><input value={mockRole} onChange={e => setMockRole(e.target.value)} placeholder="e.g. Software Engineer"/><button className="workspace-primary" onClick={startMock} disabled={busy}>{busy ? "Starting..." : "Start Mock Interview →"}</button>{mockSession && <div className="workspace-module"><h3>Question</h3><p><b>{mockSession.question}</b></p><textarea rows="7" value={mockAnswer} onChange={e => setMockAnswer(e.target.value)} placeholder="Write your answer here..."/><button className="workspace-primary" onClick={submitMock} disabled={busy || !mockAnswer.trim()}>{busy ? "Evaluating..." : "Submit Answer"}</button></div>}{mockResult && <div className="workspace-module"><h3>Result: {mockResult.score}/100</h3><p>{mockResult.feedback}</p><button onClick={startMock}>Next Question →</button></div>}{message && <p>{message}</p>}</div></SimplePage>;
+  if (page === "mocks") {
+    const currentNumber = mockSession?.question_number || (mockFinal ? 10 : 0);
+    const progress = mockSession ? Math.max(0, Math.min(100, ((currentNumber - 1) / 10) * 100)) : (mockFinal ? 100 : 0);
+    return (
+      <main className="workspace-page mock-pro-shell">
+        <div className="workspace-welcome mock-hero-card">
+          <div><span className="workspace-eyebrow">AI CAREER PRACTICE</span><h1>Mock Interview</h1><p>Practice with role-specific questions and receive objective feedback after every answer.</p></div>
+          <span className="mock-hero-badge">🤖 AI Powered</span>
+        </div>
+        {!mockSession && !mockFinal && (
+          <section className="mock-interview-card mock-start-card">
+            <div className="mock-start-icon">🎤</div>
+            <span className="workspace-eyebrow">READY WHEN YOU ARE</span>
+            <h2>Choose your target role</h2>
+            <p>The interview contains exactly 10 questions. Later questions adapt to your previous answers when AI evaluation is available.</p>
+            <div className="mock-role-row"><label>Target role</label><input value={mockRole} onChange={e => setMockRole(e.target.value)} placeholder="e.g. Software Engineer" /><button className="workspace-primary" onClick={startMock} disabled={busy}>{busy ? "Starting..." : "Start Interview →"}</button></div>
+          </section>
+        )}
+        {mockSession && (
+          <section className="mock-interview-card">
+            <div className="mock-progress-head"><span>QUESTION {currentNumber} OF 10</span><strong>{Math.round(progress)}%</strong></div>
+            <div className="mock-progress"><span style={{ width: `${progress}%` }} /></div>
+            <div className="mock-question-box"><span>🤖</span><div><small>AI Interviewer · {mockSession.role}</small><h2>{mockSession.question}</h2></div></div>
+            <label className="mock-answer-label">Your answer</label>
+            <textarea rows="8" value={mockAnswer} onChange={e => setMockAnswer(e.target.value)} placeholder="Type your answer here. Be specific and answer the question directly..." />
+            <div className="mock-submit-row"><span>{mockAnswer.trim().length} characters</span><button className="workspace-primary" onClick={submitMock} disabled={busy || !mockAnswer.trim()}>{busy ? "Evaluating..." : currentNumber === 10 ? "Submit & Finish" : "Submit Answer →"}</button></div>
+            {mockEvaluation && <div className="mock-evaluation"><div className="mock-score-pill">{mockEvaluation.score ?? "—"}<small>/10</small></div><div><b>{mockEvaluation.verdict || "AI feedback"}</b><p>{mockEvaluation.feedback || "Feedback unavailable."}</p>{mockEvaluation.correctness && <span>{mockEvaluation.correctness}</span>}</div></div>}
+          </section>
+        )}
+        {mockFinal && (
+          <section className="mock-final-card"><div className="mock-final-icon">🏆</div><span className="workspace-eyebrow">INTERVIEW COMPLETE</span><h2>Your final result</h2><div className="mock-final-score">{mockFinal.score ?? mockFinal.final_score ?? 0}<small>/100</small></div><div className="mock-final-grid"><div><b>{mockHistory.length}</b><span>Questions completed</span></div><div><b>{mockHistory.filter(x => Number(x.score) >= 7).length}</b><span>Strong answers</span></div><div><b>{mockHistory.length ? (mockHistory.reduce((s,x) => s + Number(x.score || 0),0) / mockHistory.length).toFixed(1) : "0.0"}</b><span>Average /10</span></div></div><p>{mockFinal.feedback || mockFinal.overall_feedback || "Review each answer and use the feedback to improve your next interview."}</p><button className="workspace-primary" onClick={startMock}>Practice Again →</button></section>
+        )}
+        {message && <div className="workspace-alert">⚠️ {message}</div>}
+      </main>
+    );
+  }
 
-  if (page === "jobs") return <SimplePage title="Jobs" icon="💼" description="Live remote job listings retrieved from Remotive. Listings are delayed by the source and link back to the original posting."><div className="workspace-module"><form onSubmit={e => {e.preventDefault(); loadJobs(jobSearch)}}><input value={jobSearch} onChange={e => setJobSearch(e.target.value)} placeholder="Search jobs, e.g. React, Python, Data Analyst"/><button className="workspace-primary" disabled={busy}>{busy ? "Searching..." : "Search Jobs"}</button></form>{message && <p>{message}</p>}<div className="workspace-job-list">{jobs.map(job => <article className="workspace-module" key={job.id}><h3>{job.title}</h3><p><b>{job.company}</b> · {job.location || "Remote"}</p><a href={job.url} target="_blank" rel="noreferrer">View original posting →</a></article>)}</div><small>Source: Remotive. Job data is provided by the source and may be delayed.</small></div></SimplePage>;
+  if (page === "jobs") {
+    return (
+      <main className="workspace-page jobs-page">
+        <div className="workspace-welcome"><div><span className="workspace-eyebrow">CAREER OPPORTUNITIES</span><h1>Find your next opportunity</h1><p>Search live remote listings and open the original posting to apply.</p></div><span className="jobs-hero-icon">💼</span></div>
+        <section className="jobs-search-card"><form onSubmit={e => { e.preventDefault(); loadJobs(jobSearch); }}><div className="jobs-search-input"><span>⌕</span><input value={jobSearch} onChange={e => setJobSearch(e.target.value)} placeholder="Search jobs, e.g. React, Python, Data Analyst" /></div><button className="workspace-primary" disabled={busy}>{busy ? "Searching..." : "Search Jobs"}</button></form></section>
+        {message && <div className="workspace-alert">⚠️ {message}</div>}
+        <section className="jobs-grid">{jobs.map(job => <article className="job-card-modern" key={job.id}><div className="job-card-top"><span className="job-company-icon">{String(job.company || "J").slice(0,1).toUpperCase()}</span><span className="job-source">LIVE LISTING</span></div><h3>{job.title}</h3><p className="job-company">{job.company}</p><p className="job-location">📍 {job.location || "Remote"}</p><div className="job-card-footer"><span>🌐 Remotive</span><a href={job.url} target="_blank" rel="noreferrer">View job ↗</a></div></article>)}</section>
+        {!jobs.length && !busy && <div className="workspace-empty"><div className="workspace-empty-icon">💼</div><h2>No job listings yet</h2><p>Search for a role to load available listings.</p></div>}
+        <small className="jobs-source-note">Source: Remotive. Job data may be delayed by the source.</small>
+      </main>
+    );
+  }
 
-  if (page === "applications") return <SimplePage title="My Applications" icon="📋" description="Save and update your real application history."><div className="workspace-module"><form onSubmit={saveApplication}><input placeholder="Company" value={appForm.company} onChange={e => setAppForm({...appForm, company:e.target.value})} required/><input placeholder="Role" value={appForm.role} onChange={e => setAppForm({...appForm, role:e.target.value})} required/><input placeholder="Location" value={appForm.location} onChange={e => setAppForm({...appForm, location:e.target.value})}/><input placeholder="Job URL" value={appForm.url} onChange={e => setAppForm({...appForm, url:e.target.value})}/><select value={appForm.status} onChange={e => setAppForm({...appForm,status:e.target.value})}><option>Applied</option><option>Interview</option><option>Offer</option><option>Rejected</option><option>Withdrawn</option></select><textarea placeholder="Notes" value={appForm.notes} onChange={e => setAppForm({...appForm,notes:e.target.value})}/><button className="workspace-primary" disabled={busy}>{busy ? "Saving..." : "Add Application"}</button></form>{message && <p>{message}</p>}<div>{applications.map(a => <article className="workspace-module" key={a.id}><h3>{a.company} — {a.role}</h3><p>{a.location || "Location not specified"}</p>{a.url && <a href={a.url} target="_blank" rel="noreferrer">Open job →</a>}<select value={a.status} onChange={e => updateApplication(a.id,e.target.value)}><option>Applied</option><option>Interview</option><option>Offer</option><option>Rejected</option><option>Withdrawn</option></select><button onClick={() => deleteApplication(a.id)}>Delete</button></article>)}</div></div></SimplePage>;
+  if (page === "applications") {
+    return (
+      <main className="workspace-page applications-page">
+        <div className="workspace-welcome"><div><span className="workspace-eyebrow">JOB TRACKER</span><h1>My Applications</h1><p>Keep every application organized from one professional workspace.</p></div><span className="applications-count">📋 {applications.length} tracked</span></div>
+        <div className="applications-layout"><section className="application-form-card"><div className="section-heading-row"><div><h2>Add application</h2><p>Save a role as soon as you apply.</p></div><span>➕</span></div><form onSubmit={saveApplication} className="application-form"><label>Company<input placeholder="Company name" value={appForm.company} onChange={e => setAppForm({...appForm,company:e.target.value})} required /></label><label>Role<input placeholder="Job title" value={appForm.role} onChange={e => setAppForm({...appForm,role:e.target.value})} required /></label><label>Location<input placeholder="Remote / City" value={appForm.location} onChange={e => setAppForm({...appForm,location:e.target.value})} /></label><label>Job URL<input placeholder="https://..." value={appForm.url} onChange={e => setAppForm({...appForm,url:e.target.value})} /></label><label>Status<select value={appForm.status} onChange={e => setAppForm({...appForm,status:e.target.value})}><option>Applied</option><option>Interview</option><option>Offer</option><option>Rejected</option><option>Withdrawn</option></select></label><label className="application-notes">Notes<textarea placeholder="Add a note..." value={appForm.notes} onChange={e => setAppForm({...appForm,notes:e.target.value})} /></label><button className="workspace-primary" disabled={busy}>{busy ? "Saving..." : "Save Application"}</button></form>{message && <p className="workspace-message">{message}</p>}</section><section className="applications-list-card"><div className="section-heading-row"><div><h2>Application history</h2><p>Your saved applications and current status.</p></div></div><div className="application-list">{applications.map(a => <article className="application-card-modern" key={a.id}><div className="application-company-icon">{String(a.company || "C").slice(0,1).toUpperCase()}</div><div className="application-main"><h3>{a.role}</h3><p>{a.company} · {a.location || "Location not specified"}</p><div className="application-meta">Applied {a.applied_at ? new Date(a.applied_at).toLocaleDateString() : "recently"}</div></div><div className="application-actions"><select value={a.status} onChange={e => updateApplication(a.id,e.target.value)}><option>Applied</option><option>Interview</option><option>Offer</option><option>Rejected</option><option>Withdrawn</option></select>{a.url && <a href={a.url} target="_blank" rel="noreferrer">Open ↗</a>}<button className="danger-ghost" onClick={() => deleteApplication(a.id)}>Delete</button></div></article>)}</div>{!applications.length && <div className="workspace-empty"><div className="workspace-empty-icon">📋</div><h2>No applications yet</h2><p>Add your first application to start tracking your job search.</p></div>}</section></div>
+      </main>
+    );
+  }
 
-  if (page === "profile") return <SimplePage title="Profile" icon="👤" description="Your profile is stored in the ResumeAI database."><form className="workspace-module" onSubmit={saveProfile}><input value={profile.name} onChange={e=>setProfile({...profile,name:e.target.value})} placeholder="Name" required/><input value={profile.email} readOnly placeholder="Email"/><input value={profile.phone} onChange={e=>setProfile({...profile,phone:e.target.value})} placeholder="Phone"/><input value={profile.location} onChange={e=>setProfile({...profile,location:e.target.value})} placeholder="Location"/><input value={profile.headline} onChange={e=>setProfile({...profile,headline:e.target.value})} placeholder="Professional headline"/><textarea value={profile.bio} onChange={e=>setProfile({...profile,bio:e.target.value})} placeholder="Short bio"/><textarea value={profile.skills} onChange={e=>setProfile({...profile,skills:e.target.value})} placeholder="Skills"/><button className="workspace-primary" disabled={busy}>{busy ? "Saving..." : "Save Profile"}</button>{message && <p>{message}</p>}</form></SimplePage>;
+  if (page === "profile") {
+    const skillList = String(profile.skills || "").split(",").map(s => s.trim()).filter(Boolean);
+    const strength = Math.round(([profile.name, profile.email, profile.phone, profile.location, profile.headline, profile.bio, profile.skills].filter(Boolean).length / 7) * 100);
+    return <SimplePage title="Profile" icon="👤" description="Build the professional profile ResumeAI can use across your workspace."><div className="profile-pro-shell"><section className="profile-cover-card"><div className="profile-avatar">{(profile.name || "U").trim().charAt(0).toUpperCase()}</div><div className="profile-cover-info"><span className="workspace-eyebrow">YOUR PROFESSIONAL PROFILE</span><h2>{profile.name || "Your Name"}</h2><p>{profile.headline || "Add a professional headline to introduce yourself."}</p><div className="profile-meta-row"><span>✉️ {profile.email || "Email not added"}</span><span>📍 {profile.location || "Location not added"}</span></div></div><div className="profile-completion"><span>Profile strength</span><strong>{Math.min(100,strength)}%</strong></div></section><div className="profile-grid"><section className="workspace-module profile-form-card"><div className="mock-section-heading"><div><span>🪪</span><div><h3>Personal information</h3><p>Keep your professional details current.</p></div></div></div><form onSubmit={saveProfile}><label>Full name<input value={profile.name || ""} onChange={e=>setProfile({...profile,name:e.target.value})} required /></label><label>Email<input value={profile.email || ""} readOnly /></label><label>Phone<input value={profile.phone || ""} onChange={e=>setProfile({...profile,phone:e.target.value})} /></label><label>Location<input value={profile.location || ""} onChange={e=>setProfile({...profile,location:e.target.value})} /></label><label>Professional headline<input value={profile.headline || ""} onChange={e=>setProfile({...profile,headline:e.target.value})} placeholder="e.g. B.Tech student | Aspiring Software Engineer" /></label><label>About you<textarea rows="5" value={profile.bio || ""} onChange={e=>setProfile({...profile,bio:e.target.value})} /></label><label>Skills <span className="field-hint">Separate with commas</span><textarea rows="4" value={profile.skills || ""} onChange={e=>setProfile({...profile,skills:e.target.value})} placeholder="Python, React, SQL, FastAPI" /></label><button className="workspace-primary" disabled={busy}>{busy ? "Saving..." : "Save Profile"}</button></form>{message && <p className="workspace-message">{message}</p>}</section><aside className="profile-side-column"><section className="workspace-module profile-preview-card"><div className="mock-section-heading"><div><span>✨</span><div><h3>Profile preview</h3><p>How your professional identity looks.</p></div></div></div><div className="profile-preview-inner"><div className="profile-mini-avatar">{(profile.name || "U").trim().charAt(0).toUpperCase()}</div><h3>{profile.name || "Your Name"}</h3><p>{profile.headline || "Professional headline"}</p><div className="profile-skill-list">{(skillList.length ? skillList : ["Add skills"]).slice(0,8).map((s,i)=><span key={i}>{s}</span>)}</div></div></section><section className="profile-tip-card"><span>💡</span><div><b>Profile tip</b><p>Use a clear headline and only list skills you can genuinely discuss.</p></div></section></aside></div></div></SimplePage>;
+  }
 
-  if (page === "settings") return <SimplePage title="Settings" icon="⚙️" description="Preferences are stored for your account."><form className="workspace-module" onSubmit={saveSettings}><label><input type="checkbox" checked={settings.email_notifications} onChange={e=>setSettings({...settings,email_notifications:e.target.checked})}/> Email notifications</label><label><input type="checkbox" checked={settings.weekly_summary} onChange={e=>setSettings({...settings,weekly_summary:e.target.checked})}/> Weekly career summary</label><label>Language<select value={settings.language} onChange={e=>setSettings({...settings,language:e.target.value})}><option>English</option><option>Hindi</option><option>Hinglish</option></select></label><button className="workspace-primary" disabled={busy}>{busy ? "Saving..." : "Save Settings"}</button>{message && <p>{message}</p>}</form></SimplePage>;
+  if (page === "settings") {
+    return <SimplePage title="Settings" icon="⚙️" description="Control your ResumeAI workspace preferences."><div className="settings-pro-shell"><section className="settings-header-card"><div className="settings-header-icon">⚙️</div><div><span className="workspace-eyebrow">WORKSPACE PREFERENCES</span><h2>Make ResumeAI work your way</h2><p>Choose how notifications and language preferences behave across your account.</p></div></section><form className="settings-list-card" onSubmit={saveSettings}><div className="settings-row"><div className="settings-row-icon">🔔</div><div className="settings-row-copy"><b>Email notifications</b><span>Receive important account and workspace updates.</span></div><label className="toggle"><input type="checkbox" checked={Boolean(settings.email_notifications)} onChange={e=>setSettings({...settings,email_notifications:e.target.checked})}/><span /></label></div><div className="settings-row"><div className="settings-row-icon">📈</div><div className="settings-row-copy"><b>Weekly career summary</b><span>Keep a weekly view of your ResumeAI activity.</span></div><label className="toggle"><input type="checkbox" checked={Boolean(settings.weekly_summary)} onChange={e=>setSettings({...settings,weekly_summary:e.target.checked})}/><span /></label></div><div className="settings-row"><div className="settings-row-icon">🌐</div><div className="settings-row-copy"><b>Workspace language</b><span>Choose your preferred interface language.</span></div><select value={settings.language || "English"} onChange={e=>setSettings({...settings,language:e.target.value})}><option>English</option><option>Hindi</option><option>Hinglish</option></select></div><div className="settings-save-bar"><div><b>Preferences</b><span>Your changes are saved to your account.</span></div><button className="workspace-primary" disabled={busy}>{busy ? "Saving..." : "Save Changes"}</button></div>{message && <p className="workspace-message">{message}</p>}</form><section className="settings-info-grid"><div><span>🔒</span><b>Account privacy</b><p>Your workspace settings are tied to your account.</p></div><div><span>🧠</span><b>AI language</b><p>AI Career Chat can respond in English, Hindi or Hinglish based on your question.</p></div><div><span>✨</span><b>ResumeAI experience</b><p>Preferences do not change the truthfulness of analysis results.</p></div></section></div></SimplePage>;
+  }
 
-  if (page === "analytics") return <SimplePage title="Analytics" icon="📊" description="Your saved workspace activity, not invented numbers."><div className="workspace-stats"><div className="workspace-stat"><span>📋</span><div><small>Applications</small><strong>{analytics?.applications ?? "—"}</strong></div></div><div className="workspace-stat"><span>🎤</span><div><small>Mock Interviews</small><strong>{analytics?.mock_interviews ?? "—"}</strong></div></div><div className="workspace-stat"><span>🎯</span><div><small>Average Mock Score</small><strong>{analytics?.average_mock_score != null ? `${analytics.average_mock_score}%` : "—"}</strong></div></div></div>{message && <p>{message}</p>}</SimplePage>;
+  if (page === "analytics") return <SimplePage title="Analytics" icon="📊" description="Your saved workspace activity, not invented numbers."><div className="workspace-stats"><div className="workspace-stat"><span>📄</span><div><small>Resumes analyzed</small><strong>{analytics?.resumes ?? "—"}</strong></div></div><div className="workspace-stat"><span>🎯</span><div><small>Average resume score</small><strong>{analytics?.average_resume_score != null ? `${analytics.average_resume_score}/100` : "—"}</strong></div></div><div className="workspace-stat"><span>📋</span><div><small>Applications</small><strong>{analytics?.applications ?? "—"}</strong></div></div><div className="workspace-stat"><span>🎤</span><div><small>Mock interviews</small><strong>{analytics?.mock_interviews ?? "—"}</strong></div></div></div></SimplePage>;
 
-  if (page === "premium") return <SimplePage title="ResumeAI Premium" icon="⭐" description="Premium is activated only after a verified payment. No fake payment success is used."><div className="workspace-module"><h2>Premium — ₹20</h2><p>{premium?.message || "Checking premium status..."}</p><p><b>Payment note:</b> A real payment gateway requires a properly verified merchant account and server-side payment verification. Do not trust a client-side 'payment successful' message.</p></div></SimplePage>;
+  if (page === "premium") return <SimplePage title="Premium" icon="⭐" description="Premium is available only after a real payment gateway is configured."><div className="workspace-module"><h2>⭐ ResumeAI Premium</h2><p>{premium?.message || "Payment setup is not active yet."}</p></div></SimplePage>;
 
   return null;
 }
