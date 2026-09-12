@@ -61,8 +61,8 @@ function getScoreInfo(score) {
 
   return {
     className: "poor",
-    label: "Weak Resume",
-    emoji: "🔴",
+    label: "Needs Work",
+    emoji: "🛠️",
     message:
       "Your resume currently has several important gaps. Focus on the highest-priority improvements first.",
   };
@@ -112,116 +112,91 @@ function isBullet(line) {
   );
 }
 
-function renderEnhancedPreview(text) {
+function renderEnhancedPreview(text, photoDataUrl = "") {
   if (!text) return null;
 
-  const lines = text.split(/\r?\n/);
-  let meaningfulIndex = 0;
+  const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  const sectionNames = new Set([
+    "summary", "professional summary", "objective", "profile", "skills", "technical skills",
+    "experience", "work experience", "professional experience", "education", "projects",
+    "certifications", "achievements", "awards", "languages", "interests", "internship", "internships"
+  ]);
 
-  return lines.map((rawLine, index) => {
-    const line = rawLine.trim();
+  let name = lines[0] || "Your Name";
+  let contact = "";
+  let currentSection = "";
+  const sections = [];
+  const sectionMap = new Map();
 
-    if (!line) {
-      return (
-        <div
-          className="resume-preview-space"
-          key={index}
-        />
-      );
+  lines.slice(1).forEach(line => {
+    const normalized = line.replace(/[:]/g, "").toLowerCase();
+    if (!contact && (line.includes("@") || /linkedin|github|\+?\d[\d\s().-]{7,}/i.test(line))) {
+      contact = line;
+      return;
     }
-
-    const currentMeaningfulIndex =
-      meaningfulIndex;
-
-    meaningfulIndex += 1;
-
-    if (currentMeaningfulIndex === 0) {
-      return (
-        <div
-          className="resume-preview-name"
-          key={index}
-        >
-          {line}
-        </div>
-      );
+    if (sectionNames.has(normalized)) {
+      currentSection = line;
+      const item = { title: line, items: [] };
+      sections.push(item);
+      sectionMap.set(normalized, item);
+      return;
     }
-
-    if (
-      currentMeaningfulIndex === 1 &&
-      (line.includes("@") ||
-        line.includes("linkedin") ||
-        line.includes("github") ||
-        /\d{7,}/.test(line))
-    ) {
-      return (
-        <div
-          className="resume-preview-contact"
-          key={index}
-        >
-          {line}
-        </div>
-      );
+    if (!currentSection) {
+      currentSection = "Professional Summary";
+      let item = sectionMap.get("professional summary");
+      if (!item) { item = { title: "Professional Summary", items: [] }; sections.push(item); sectionMap.set("professional summary", item); }
+      item.items.push(line);
+      return;
     }
-
-    if (isSectionHeading(line)) {
-      return (
-        <div
-          className="resume-preview-section"
-          key={index}
-        >
-          {line.toUpperCase()}
-        </div>
-      );
-    }
-
-    if (isBullet(line)) {
-      return (
-        <div
-          className="resume-preview-bullet"
-          key={index}
-        >
-          <span>•</span>
-
-          <span>
-            {line.replace(
-              /^(?:[•●▪◦‣*-]|\d+[.)])\s+/,
-              ""
-            )}
-          </span>
-        </div>
-      );
-    }
-
-    return (
-      <div
-        className="resume-preview-line"
-        key={index}
-      >
-        {line}
-      </div>
-    );
+    const item = sectionMap.get(currentSection.replace(/[:]/g, "").toLowerCase());
+    if (item) item.items.push(line); else sections.push({ title: currentSection, items: [line] });
   });
-}
 
+  const leftTitles = new Set(["skills", "technical skills", "languages", "certifications", "achievements", "awards", "interests"]);
+  const left = sections.filter(s => leftTitles.has(s.title.replace(/[:]/g, "").toLowerCase()));
+  const right = sections.filter(s => !leftTitles.has(s.title.replace(/[:]/g, "").toLowerCase()));
+
+  const Section = ({ section }) => (
+    <section className="enhanced-preview-section">
+      <h4>{section.title.toUpperCase()}</h4>
+      {section.items.map((item, i) => {
+        const bullet = isBullet(item);
+        return bullet ? <div className="enhanced-preview-bullet" key={i}><span>•</span><span>{item.replace(/^(?:[•●▪◦‣*-]|\d+[.)])\s+/, "")}</span></div> : <p key={i}>{item}</p>;
+      })}
+    </section>
+  );
+
+  return (
+    <div className="enhanced-preview-paper">
+      <header className="enhanced-preview-header">
+        <div>
+          <h2>{name}</h2>
+          <div className="enhanced-preview-contact">{contact || "Professional Profile"}</div>
+        </div>
+        {photoDataUrl ? <img src={photoDataUrl} alt="Profile" className="enhanced-preview-photo" /> : <div className="enhanced-preview-photo-placeholder">PHOTO</div>}
+      </header>
+      <div className="enhanced-preview-columns">
+        <aside>{left.length ? left.map((section, i) => <Section section={section} key={i} />) : <Section section={{title:"Key Skills", items:["Skills from your original resume are preserved in the generated PDF."]}} />}</aside>
+        <div>{right.length ? right.map((section, i) => <Section section={section} key={i} />) : <Section section={{title:"Professional Summary", items:lines.slice(1)}} />}</div>
+      </div>
+    </div>
+  );
+}
 
 function WorkspaceModules({ page, currentUser, onNavigate }) {
   const token = localStorage.getItem("resumeai_token");
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
-
   const [mockRole, setMockRole] = useState("Software Engineer");
   const [mockSession, setMockSession] = useState(null);
   const [mockAnswer, setMockAnswer] = useState("");
-  const [mockEvaluation, setMockEvaluation] = useState(null);
-  const [mockHistory, setMockHistory] = useState([]);
-  const [mockFinal, setMockFinal] = useState(null);
-
+  const [mockResult, setMockResult] = useState(null);
+  const [mockNumber, setMockNumber] = useState(1);
   const [jobs, setJobs] = useState([]);
   const [jobSearch, setJobSearch] = useState("");
   const [applications, setApplications] = useState([]);
   const [appForm, setAppForm] = useState({ company: "", role: "", location: "", url: "", status: "Applied", notes: "" });
-
   const [profile, setProfile] = useState({ name: currentUser?.name || "", email: currentUser?.email || "", phone: "", location: "", headline: "", bio: "", skills: "" });
   const [settings, setSettings] = useState({ email_notifications: true, weekly_summary: true, language: "English" });
   const [analytics, setAnalytics] = useState(null);
@@ -240,217 +215,114 @@ function WorkspaceModules({ page, currentUser, onNavigate }) {
   useEffect(() => {
     if (!currentUser || !token) return;
     setMessage("");
-
-    if (page === "applications") {
-      api("/api/applications").then(d => setApplications(d.applications || [])).catch(e => setMessage(e.message));
-    } else if (page === "profile") {
-      api("/api/profile").then(d => setProfile(d.profile || {})).catch(e => setMessage(e.message));
-    } else if (page === "settings") {
-      api("/api/settings").then(d => setSettings(d.settings || {})).catch(e => setMessage(e.message));
-    } else if (page === "analytics") {
-      api("/api/analytics").then(d => setAnalytics(d.analytics || {})).catch(e => setMessage(e.message));
-    } else if (page === "premium") {
-      api("/api/premium/status").then(setPremium).catch(e => setMessage(e.message));
-    } else if (page === "jobs") {
-      loadJobs("");
-    }
+    if (page === "applications") api("/api/applications").then(d => setApplications(d.applications || [])).catch(e => setMessage(e.message));
+    else if (page === "profile") api("/api/profile").then(d => setProfile(d.profile)).catch(e => setMessage(e.message));
+    else if (page === "settings") api("/api/settings").then(d => setSettings(d.settings)).catch(e => setMessage(e.message));
+    else if (page === "analytics") api("/api/analytics").then(d => setAnalytics(d.analytics)).catch(e => setMessage(e.message));
+    else if (page === "premium") api("/api/premium/status").then(setPremium).catch(e => setPremium({ message: "Premium is currently being prepared." }));
+    else if (page === "jobs") loadJobs("");
+    else if (page === "mocks") api("/api/mocks").then(d => {
+      const latest = (d.sessions || [])[0];
+      if (latest && !latest.score) setMockSession({ id: latest.id, question: latest.question, role: latest.role });
+    }).catch(() => {});
   }, [page, currentUser]);
 
   async function loadJobs(search) {
     if (!currentUser) return onNavigate("login");
-    setBusy(true);
-    setMessage("");
-    try {
-      const d = await api(`/api/jobs?search=${encodeURIComponent(search)}`);
-      setJobs(d.jobs || []);
-    } catch (e) {
-      setMessage(e.message);
-    } finally {
-      setBusy(false);
-    }
+    setBusy(true); setMessage("");
+    try { const d = await api(`/api/jobs?search=${encodeURIComponent(search)}`); setJobs(d.jobs || []); }
+    catch (e) { setMessage(e.message); }
+    finally { setBusy(false); }
   }
 
   async function startMock() {
     if (!currentUser) return onNavigate("login");
-    setBusy(true);
-    setMessage("");
-    setMockAnswer("");
-    setMockEvaluation(null);
-    setMockFinal(null);
-    setMockHistory([]);
-    try {
-      const d = await api("/api/mock/start", { method: "POST", body: JSON.stringify({ role: mockRole }) });
-      setMockSession({ id: d.session_id, question: d.question, role: d.role, question_number: d.question_number || 1, total_questions: d.total_questions || 10 });
-    } catch (e) {
-      setMessage(e.message);
-    } finally {
-      setBusy(false);
-    }
+    setBusy(true); setMessage(""); setMockResult(null); setMockAnswer(""); setMockNumber(1);
+    try { const d = await api("/api/mocks/start", { method: "POST", body: JSON.stringify({ role: mockRole }) }); setMockSession({ id: d.session_id, question: d.question, role: d.role }); }
+    catch (e) { setMessage(e.message); }
+    finally { setBusy(false); }
   }
 
   async function submitMock() {
     if (!mockSession || !mockAnswer.trim()) return;
-    setBusy(true);
-    setMessage("");
+    setBusy(true); setMessage("");
     try {
-      const d = await api(`/api/mock/${mockSession.id}/answer`, { method: "POST", body: JSON.stringify({ answer: mockAnswer.trim() }) });
-      setMockEvaluation(d.evaluation || null);
-      setMockHistory(prev => [...prev, { question: mockSession.question, answer: mockAnswer.trim(), ...(d.evaluation || {}) }]);
-      setMockAnswer("");
+      const d = await api(`/api/mocks/${mockSession.id}/answer`, { method: "POST", body: JSON.stringify({ answer: mockAnswer }) });
+      setMockResult(d);
+    } catch (e) { setMessage(e.message); }
+    finally { setBusy(false); }
+  }
 
-      if (d.completed || d.final_result) {
-        setMockFinal(d.final_result || d);
-        setMockSession(null);
-      } else {
-        setMockSession(prev => ({ ...prev, question: d.next_question, question_number: d.question_number || ((prev?.question_number || 1) + 1), total_questions: d.total_questions || 10 }));
-      }
-    } catch (e) {
-      setMessage(e.message);
-    } finally {
-      setBusy(false);
+  function nextMockQuestion() {
+    if (mockNumber >= 10) {
+      setMockSession(null);
+      setMockResult({ final: true, score: mockResult?.score, feedback: "Interview complete. Review your final result and use the feedback to improve your next attempt." });
+      return;
     }
+    setMockNumber(n => n + 1);
+    setMockResult(null);
+    setMockAnswer("");
   }
 
   async function saveApplication(e) {
-    e.preventDefault();
-    setBusy(true);
-    setMessage("");
-    try {
-      const d = await api("/api/applications", { method: "POST", body: JSON.stringify(appForm) });
-      setApplications(prev => [d.application, ...prev]);
-      setAppForm({ company: "", role: "", location: "", url: "", status: "Applied", notes: "" });
-      setMessage("Application saved successfully.");
-    } catch (e) {
-      setMessage(e.message);
-    } finally {
-      setBusy(false);
-    }
+    e.preventDefault(); setBusy(true); setMessage("");
+    try { const d = await api("/api/applications", { method: "POST", body: JSON.stringify(appForm) }); setApplications(prev => [d.application, ...prev]); setAppForm({ company: "", role: "", location: "", url: "", status: "Applied", notes: "" }); setMessage("Application added successfully."); }
+    catch (e) { setMessage(e.message); }
+    finally { setBusy(false); }
   }
 
   async function updateApplication(id, status) {
-    try {
-      const d = await api(`/api/applications/${id}`, { method: "PATCH", body: JSON.stringify({ status }) });
-      setApplications(prev => prev.map(a => a.id === id ? d.application : a));
-    } catch (e) {
-      setMessage(e.message);
-    }
+    try { const d = await api(`/api/applications/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }); setApplications(prev => prev.map(a => a.id === id ? d.application : a)); }
+    catch (e) { setMessage(e.message); }
   }
 
   async function deleteApplication(id) {
-    try {
-      await api(`/api/applications/${id}`, { method: "DELETE" });
-      setApplications(prev => prev.filter(a => a.id !== id));
-    } catch (e) {
-      setMessage(e.message);
-    }
+    try { await api(`/api/applications/${id}`, { method: "DELETE" }); setApplications(prev => prev.filter(a => a.id !== id)); }
+    catch (e) { setMessage(e.message); }
   }
 
   async function saveProfile(e) {
-    e.preventDefault();
-    setBusy(true);
-    setMessage("");
-    try {
-      await api("/api/profile", { method: "PUT", body: JSON.stringify(profile) });
-      const updatedUser = { ...currentUser, name: profile.name };
-      localStorage.setItem("resumeai_user", JSON.stringify(updatedUser));
-      setMessage("Profile saved successfully.");
-    } catch (e) {
-      setMessage(e.message);
-    } finally {
-      setBusy(false);
-    }
+    e.preventDefault(); setBusy(true); setMessage("");
+    try { await api("/api/profile", { method: "PUT", body: JSON.stringify(profile) }); localStorage.setItem("resumeai_user", JSON.stringify({ ...currentUser, name: profile.name })); setMessage("Profile saved successfully."); }
+    catch (e) { setMessage(e.message); }
+    finally { setBusy(false); }
   }
 
   async function saveSettings(e) {
-    e.preventDefault();
-    setBusy(true);
-    setMessage("");
-    try {
-      await api("/api/settings", { method: "PUT", body: JSON.stringify(settings) });
-      setMessage("Settings saved successfully.");
-    } catch (e) {
-      setMessage(e.message);
-    } finally {
-      setBusy(false);
-    }
+    e.preventDefault(); setBusy(true); setMessage("");
+    try { await api("/api/settings", { method: "PUT", body: JSON.stringify(settings) }); setMessage("Settings saved successfully."); }
+    catch (e) { setMessage(e.message); }
+    finally { setBusy(false); }
   }
 
-  if (!currentUser) {
-    return <SimplePage title="Login required" icon="🔐" description="Sign in to use this workspace feature."><div className="workspace-module"><p>Please log in first so your data can be saved to your account.</p><button className="workspace-primary" onClick={() => onNavigate("login")}>Login →</button></div></SimplePage>;
+  if (!currentUser && !["resources"].includes(page)) {
+    return <SimplePage title="Login required" icon="🔐" description="Create an account or sign in to use this workspace feature."><div className="workspace-module"><p>Please log in first so your data can be saved to your account.</p><button className="workspace-primary" onClick={() => onNavigate("login")}>Login →</button></div></SimplePage>;
   }
 
-  if (page === "mocks") {
-    const currentNumber = mockSession?.question_number || (mockFinal ? 10 : 0);
-    const progress = mockSession ? Math.max(0, Math.min(100, ((currentNumber - 1) / 10) * 100)) : (mockFinal ? 100 : 0);
-    return (
-      <main className="workspace-page mock-pro-shell">
-        <div className="workspace-welcome mock-hero-card">
-          <div><span className="workspace-eyebrow">AI CAREER PRACTICE</span><h1>Mock Interview</h1><p>Practice with role-specific questions and receive objective feedback after every answer.</p></div>
-          <span className="mock-hero-badge">🤖 AI Powered</span>
-        </div>
-        {!mockSession && !mockFinal && (
-          <section className="mock-interview-card mock-start-card">
-            <div className="mock-start-icon">🎤</div>
-            <span className="workspace-eyebrow">READY WHEN YOU ARE</span>
-            <h2>Choose your target role</h2>
-            <p>The interview contains exactly 10 questions. Later questions adapt to your previous answers when AI evaluation is available.</p>
-            <div className="mock-role-row"><label>Target role</label><input value={mockRole} onChange={e => setMockRole(e.target.value)} placeholder="e.g. Software Engineer" /><button className="workspace-primary" onClick={startMock} disabled={busy}>{busy ? "Starting..." : "Start Interview →"}</button></div>
-          </section>
-        )}
-        {mockSession && (
-          <section className="mock-interview-card">
-            <div className="mock-progress-head"><span>QUESTION {currentNumber} OF 10</span><strong>{Math.round(progress)}%</strong></div>
-            <div className="mock-progress"><span style={{ width: `${progress}%` }} /></div>
-            <div className="mock-question-box"><span>🤖</span><div><small>AI Interviewer · {mockSession.role}</small><h2>{mockSession.question}</h2></div></div>
-            <label className="mock-answer-label">Your answer</label>
-            <textarea rows="8" value={mockAnswer} onChange={e => setMockAnswer(e.target.value)} placeholder="Type your answer here. Be specific and answer the question directly..." />
-            <div className="mock-submit-row"><span>{mockAnswer.trim().length} characters</span><button className="workspace-primary" onClick={submitMock} disabled={busy || !mockAnswer.trim()}>{busy ? "Evaluating..." : currentNumber === 10 ? "Submit & Finish" : "Submit Answer →"}</button></div>
-            {mockEvaluation && <div className="mock-evaluation"><div className="mock-score-pill">{mockEvaluation.score ?? "—"}<small>/10</small></div><div><b>{mockEvaluation.verdict || "AI feedback"}</b><p>{mockEvaluation.feedback || "Feedback unavailable."}</p>{mockEvaluation.correctness && <span>{mockEvaluation.correctness}</span>}</div></div>}
-          </section>
-        )}
-        {mockFinal && (
-          <section className="mock-final-card"><div className="mock-final-icon">🏆</div><span className="workspace-eyebrow">INTERVIEW COMPLETE</span><h2>Your final result</h2><div className="mock-final-score">{mockFinal.score ?? mockFinal.final_score ?? 0}<small>/100</small></div><div className="mock-final-grid"><div><b>{mockHistory.length}</b><span>Questions completed</span></div><div><b>{mockHistory.filter(x => Number(x.score) >= 7).length}</b><span>Strong answers</span></div><div><b>{mockHistory.length ? (mockHistory.reduce((s,x) => s + Number(x.score || 0),0) / mockHistory.length).toFixed(1) : "0.0"}</b><span>Average /10</span></div></div><p>{mockFinal.feedback || mockFinal.overall_feedback || "Review each answer and use the feedback to improve your next interview."}</p><button className="workspace-primary" onClick={startMock}>Practice Again →</button></section>
-        )}
-        {message && <div className="workspace-alert">⚠️ {message}</div>}
-      </main>
-    );
-  }
+  if (page === "mocks") return <SimplePage title="Mock Interviews" icon="🎤" description="Practice with AI-powered questions and objective answer feedback.">
+    <div className="professional-module">
+      {!mockSession && !mockResult?.final && <div className="mock-start-card"><div className="module-icon">🎤</div><div><span className="eyebrow">AI INTERVIEW PRACTICE</span><h2>Prepare for your next interview</h2><p>Answer up to exactly 10 role-focused questions and receive feedback after every answer.</p></div><div className="mock-role-row"><input value={mockRole} onChange={e => setMockRole(e.target.value)} placeholder="Target role, e.g. Software Engineer"/><button className="workspace-primary" onClick={startMock} disabled={busy}>{busy ? "Starting..." : "Start Interview →"}</button></div></div>}
+      {mockSession && <div className="mock-question-card"><div className="mock-progress"><span>QUESTION {mockNumber} OF 10</span><div><i style={{ width: `${(mockNumber / 10) * 100}%` }} /></div></div><h2>{mockSession.question}</h2><p className="muted">Role: {mockSession.role || mockRole}</p><textarea rows="8" value={mockAnswer} onChange={e => setMockAnswer(e.target.value)} placeholder="Write your answer in your own words..."/><button className="workspace-primary" onClick={submitMock} disabled={busy || !mockAnswer.trim()}>{busy ? "Evaluating..." : "Submit Answer →"}</button>{mockResult && !mockResult.final && <div className="mock-feedback"><div><span>Answer Score</span><strong>{mockResult.score ?? "—"}/100</strong></div><p>{mockResult.feedback || mockResult.message || "Feedback received."}</p><button onClick={nextMockQuestion}>{mockNumber >= 10 ? "Finish Interview" : "Next Question →"}</button></div>}</div>}
+      {mockResult?.final && <div className="mock-final-card"><div className="module-icon">🏆</div><span className="eyebrow">INTERVIEW COMPLETE</span><h2>Your 10-question mock interview is complete.</h2><p>{mockResult.feedback}</p>{mockResult.score != null && <div className="final-score">{mockResult.score}<small>/100</small></div>}<button className="workspace-primary" onClick={startMock}>Start New Interview →</button></div>}
+      {message && <p className="module-message">{message}</p>}
+    </div>
+  </SimplePage>;
 
-  if (page === "jobs") {
-    return (
-      <main className="workspace-page jobs-page">
-        <div className="workspace-welcome"><div><span className="workspace-eyebrow">CAREER OPPORTUNITIES</span><h1>Find your next opportunity</h1><p>Search live remote listings and open the original posting to apply.</p></div><span className="jobs-hero-icon">💼</span></div>
-        <section className="jobs-search-card"><form onSubmit={e => { e.preventDefault(); loadJobs(jobSearch); }}><div className="jobs-search-input"><span>⌕</span><input value={jobSearch} onChange={e => setJobSearch(e.target.value)} placeholder="Search jobs, e.g. React, Python, Data Analyst" /></div><button className="workspace-primary" disabled={busy}>{busy ? "Searching..." : "Search Jobs"}</button></form></section>
-        {message && <div className="workspace-alert">⚠️ {message}</div>}
-        <section className="jobs-grid">{jobs.map(job => <article className="job-card-modern" key={job.id}><div className="job-card-top"><span className="job-company-icon">{String(job.company || "J").slice(0,1).toUpperCase()}</span><span className="job-source">LIVE LISTING</span></div><h3>{job.title}</h3><p className="job-company">{job.company}</p><p className="job-location">📍 {job.location || "Remote"}</p><div className="job-card-footer"><span>🌐 Remotive</span><a href={job.url} target="_blank" rel="noreferrer">View job ↗</a></div></article>)}</section>
-        {!jobs.length && !busy && <div className="workspace-empty"><div className="workspace-empty-icon">💼</div><h2>No job listings yet</h2><p>Search for a role to load available listings.</p></div>}
-        <small className="jobs-source-note">Source: Remotive. Job data may be delayed by the source.</small>
-      </main>
-    );
-  }
+  if (page === "jobs") return <SimplePage title="Jobs" icon="💼" description="Explore live remote opportunities and open the original job posting.">
+    <div className="professional-module"><div className="job-search-bar"><div><span className="eyebrow">CAREER OPPORTUNITIES</span><h2>Find your next opportunity</h2></div><form onSubmit={e => { e.preventDefault(); loadJobs(jobSearch); }}><input value={jobSearch} onChange={e => setJobSearch(e.target.value)} placeholder="Search role, skill or keyword"/><button className="workspace-primary" disabled={busy}>{busy ? "Searching..." : "Search Jobs"}</button></form></div>{message && <p className="module-message">{message}</p>}<div className="job-grid">{jobs.map(job => <article className="job-card" key={job.id}><div className="job-card-top"><span className="job-company-icon">💼</span><span className="job-tag">REMOTE</span></div><h3>{job.title}</h3><p className="job-company">{job.company}</p><p className="job-location">📍 {job.location || "Remote"}</p><a href={job.url} target="_blank" rel="noreferrer" className="job-link">View Job →</a></article>)}{!jobs.length && !busy && <div className="empty-module"><span>🔎</span><h3>No jobs to show yet</h3><p>Search for a role or skill to load current opportunities.</p></div>}</div><small className="source-note">Job listings are provided by the connected job source and may change or expire.</small></div>
+  </SimplePage>;
 
-  if (page === "applications") {
-    return (
-      <main className="workspace-page applications-page">
-        <div className="workspace-welcome"><div><span className="workspace-eyebrow">JOB TRACKER</span><h1>My Applications</h1><p>Keep every application organized from one professional workspace.</p></div><span className="applications-count">📋 {applications.length} tracked</span></div>
-        <div className="applications-layout"><section className="application-form-card"><div className="section-heading-row"><div><h2>Add application</h2><p>Save a role as soon as you apply.</p></div><span>➕</span></div><form onSubmit={saveApplication} className="application-form"><label>Company<input placeholder="Company name" value={appForm.company} onChange={e => setAppForm({...appForm,company:e.target.value})} required /></label><label>Role<input placeholder="Job title" value={appForm.role} onChange={e => setAppForm({...appForm,role:e.target.value})} required /></label><label>Location<input placeholder="Remote / City" value={appForm.location} onChange={e => setAppForm({...appForm,location:e.target.value})} /></label><label>Job URL<input placeholder="https://..." value={appForm.url} onChange={e => setAppForm({...appForm,url:e.target.value})} /></label><label>Status<select value={appForm.status} onChange={e => setAppForm({...appForm,status:e.target.value})}><option>Applied</option><option>Interview</option><option>Offer</option><option>Rejected</option><option>Withdrawn</option></select></label><label className="application-notes">Notes<textarea placeholder="Add a note..." value={appForm.notes} onChange={e => setAppForm({...appForm,notes:e.target.value})} /></label><button className="workspace-primary" disabled={busy}>{busy ? "Saving..." : "Save Application"}</button></form>{message && <p className="workspace-message">{message}</p>}</section><section className="applications-list-card"><div className="section-heading-row"><div><h2>Application history</h2><p>Your saved applications and current status.</p></div></div><div className="application-list">{applications.map(a => <article className="application-card-modern" key={a.id}><div className="application-company-icon">{String(a.company || "C").slice(0,1).toUpperCase()}</div><div className="application-main"><h3>{a.role}</h3><p>{a.company} · {a.location || "Location not specified"}</p><div className="application-meta">Applied {a.applied_at ? new Date(a.applied_at).toLocaleDateString() : "recently"}</div></div><div className="application-actions"><select value={a.status} onChange={e => updateApplication(a.id,e.target.value)}><option>Applied</option><option>Interview</option><option>Offer</option><option>Rejected</option><option>Withdrawn</option></select>{a.url && <a href={a.url} target="_blank" rel="noreferrer">Open ↗</a>}<button className="danger-ghost" onClick={() => deleteApplication(a.id)}>Delete</button></div></article>)}</div>{!applications.length && <div className="workspace-empty"><div className="workspace-empty-icon">📋</div><h2>No applications yet</h2><p>Add your first application to start tracking your job search.</p></div>}</section></div>
-      </main>
-    );
-  }
+  if (page === "applications") return <SimplePage title="My Applications" icon="📋" description="Track your real job applications, statuses and notes in one place.">
+    <div className="professional-module"><div className="application-overview"><div><span className="eyebrow">APPLICATION TRACKER</span><h2>Stay on top of your job search</h2><p>Every application you save appears here with its current status.</p></div><div className="application-count"><strong>{applications.length}</strong><span>Total Applications</span></div></div><form className="application-form" onSubmit={saveApplication}><input placeholder="Company" value={appForm.company} onChange={e => setAppForm({...appForm, company:e.target.value})} required/><input placeholder="Role" value={appForm.role} onChange={e => setAppForm({...appForm, role:e.target.value})} required/><input placeholder="Location" value={appForm.location} onChange={e => setAppForm({...appForm, location:e.target.value})}/><input placeholder="Job URL (optional)" value={appForm.url} onChange={e => setAppForm({...appForm, url:e.target.value})}/><select value={appForm.status} onChange={e => setAppForm({...appForm,status:e.target.value})}><option>Applied</option><option>Interview</option><option>Offer</option><option>Rejected</option><option>Withdrawn</option></select><textarea placeholder="Notes" value={appForm.notes} onChange={e => setAppForm({...appForm,notes:e.target.value})}/><button className="workspace-primary" disabled={busy}>{busy ? "Saving..." : "Add Application +"}</button></form>{message && <p className="module-message">{message}</p>}<div className="application-list">{applications.map(a => <article className="application-card" key={a.id}><div><span className="application-company-icon">🏢</span></div><div className="application-main"><h3>{a.company}</h3><p>{a.role}</p><small>{a.location || "Location not specified"}</small>{a.url && <a href={a.url} target="_blank" rel="noreferrer">Open Job Posting →</a>}</div><div className="application-actions"><select value={a.status} onChange={e => updateApplication(a.id,e.target.value)}><option>Applied</option><option>Interview</option><option>Offer</option><option>Rejected</option><option>Withdrawn</option></select><button className="danger-ghost" onClick={() => deleteApplication(a.id)}>Delete</button></div></article>)}{!applications.length && <div className="empty-module"><span>📋</span><h3>No applications yet</h3><p>Add your first application above to start tracking your progress.</p></div>}</div></div>
+  </SimplePage>;
 
-  if (page === "profile") {
-    const skillList = String(profile.skills || "").split(",").map(s => s.trim()).filter(Boolean);
-    const strength = Math.round(([profile.name, profile.email, profile.phone, profile.location, profile.headline, profile.bio, profile.skills].filter(Boolean).length / 7) * 100);
-    return <SimplePage title="Profile" icon="👤" description="Build the professional profile ResumeAI can use across your workspace."><div className="profile-pro-shell"><section className="profile-cover-card"><div className="profile-avatar">{(profile.name || "U").trim().charAt(0).toUpperCase()}</div><div className="profile-cover-info"><span className="workspace-eyebrow">YOUR PROFESSIONAL PROFILE</span><h2>{profile.name || "Your Name"}</h2><p>{profile.headline || "Add a professional headline to introduce yourself."}</p><div className="profile-meta-row"><span>✉️ {profile.email || "Email not added"}</span><span>📍 {profile.location || "Location not added"}</span></div></div><div className="profile-completion"><span>Profile strength</span><strong>{Math.min(100,strength)}%</strong></div></section><div className="profile-grid"><section className="workspace-module profile-form-card"><div className="mock-section-heading"><div><span>🪪</span><div><h3>Personal information</h3><p>Keep your professional details current.</p></div></div></div><form onSubmit={saveProfile}><label>Full name<input value={profile.name || ""} onChange={e=>setProfile({...profile,name:e.target.value})} required /></label><label>Email<input value={profile.email || ""} readOnly /></label><label>Phone<input value={profile.phone || ""} onChange={e=>setProfile({...profile,phone:e.target.value})} /></label><label>Location<input value={profile.location || ""} onChange={e=>setProfile({...profile,location:e.target.value})} /></label><label>Professional headline<input value={profile.headline || ""} onChange={e=>setProfile({...profile,headline:e.target.value})} placeholder="e.g. B.Tech student | Aspiring Software Engineer" /></label><label>About you<textarea rows="5" value={profile.bio || ""} onChange={e=>setProfile({...profile,bio:e.target.value})} /></label><label>Skills <span className="field-hint">Separate with commas</span><textarea rows="4" value={profile.skills || ""} onChange={e=>setProfile({...profile,skills:e.target.value})} placeholder="Python, React, SQL, FastAPI" /></label><button className="workspace-primary" disabled={busy}>{busy ? "Saving..." : "Save Profile"}</button></form>{message && <p className="workspace-message">{message}</p>}</section><aside className="profile-side-column"><section className="workspace-module profile-preview-card"><div className="mock-section-heading"><div><span>✨</span><div><h3>Profile preview</h3><p>How your professional identity looks.</p></div></div></div><div className="profile-preview-inner"><div className="profile-mini-avatar">{(profile.name || "U").trim().charAt(0).toUpperCase()}</div><h3>{profile.name || "Your Name"}</h3><p>{profile.headline || "Professional headline"}</p><div className="profile-skill-list">{(skillList.length ? skillList : ["Add skills"]).slice(0,8).map((s,i)=><span key={i}>{s}</span>)}</div></div></section><section className="profile-tip-card"><span>💡</span><div><b>Profile tip</b><p>Use a clear headline and only list skills you can genuinely discuss.</p></div></section></aside></div></div></SimplePage>;
-  }
+  if (page === "profile") return <SimplePage title="Profile" icon="👤" description="Manage the career information connected to your ResumeAI account."><div className="professional-module profile-card"><div className="profile-hero"><div className="profile-avatar-large">{(profile.name || "U").slice(0,1).toUpperCase()}</div><div><span className="eyebrow">YOUR CAREER PROFILE</span><h2>{profile.name || "Your Name"}</h2><p>{profile.headline || "Add a professional headline to complete your profile."}</p></div></div><form className="profile-grid" onSubmit={saveProfile}><label>Full Name<input value={profile.name} onChange={e=>setProfile({...profile,name:e.target.value})} placeholder="Your name" required/></label><label>Email<input value={profile.email} readOnly/></label><label>Phone<input value={profile.phone} onChange={e=>setProfile({...profile,phone:e.target.value})} placeholder="Phone number"/></label><label>Location<input value={profile.location} onChange={e=>setProfile({...profile,location:e.target.value})} placeholder="City, Country"/></label><label className="full">Professional Headline<input value={profile.headline} onChange={e=>setProfile({...profile,headline:e.target.value})} placeholder="e.g. Software Developer | React & Python"/></label><label className="full">About You<textarea value={profile.bio} onChange={e=>setProfile({...profile,bio:e.target.value})} placeholder="Short professional bio"/></label><label className="full">Skills<textarea value={profile.skills} onChange={e=>setProfile({...profile,skills:e.target.value})} placeholder="Python, React, FastAPI, SQL..."/></label><div className="form-actions full"><button className="workspace-primary" disabled={busy}>{busy ? "Saving..." : "Save Profile"}</button></div></form>{message && <p className="module-message">{message}</p>}</div></SimplePage>;
 
-  if (page === "settings") {
-    return <SimplePage title="Settings" icon="⚙️" description="Control your ResumeAI workspace preferences."><div className="settings-pro-shell"><section className="settings-header-card"><div className="settings-header-icon">⚙️</div><div><span className="workspace-eyebrow">WORKSPACE PREFERENCES</span><h2>Make ResumeAI work your way</h2><p>Choose how notifications and language preferences behave across your account.</p></div></section><form className="settings-list-card" onSubmit={saveSettings}><div className="settings-row"><div className="settings-row-icon">🔔</div><div className="settings-row-copy"><b>Email notifications</b><span>Receive important account and workspace updates.</span></div><label className="toggle"><input type="checkbox" checked={Boolean(settings.email_notifications)} onChange={e=>setSettings({...settings,email_notifications:e.target.checked})}/><span /></label></div><div className="settings-row"><div className="settings-row-icon">📈</div><div className="settings-row-copy"><b>Weekly career summary</b><span>Keep a weekly view of your ResumeAI activity.</span></div><label className="toggle"><input type="checkbox" checked={Boolean(settings.weekly_summary)} onChange={e=>setSettings({...settings,weekly_summary:e.target.checked})}/><span /></label></div><div className="settings-row"><div className="settings-row-icon">🌐</div><div className="settings-row-copy"><b>Workspace language</b><span>Choose your preferred interface language.</span></div><select value={settings.language || "English"} onChange={e=>setSettings({...settings,language:e.target.value})}><option>English</option><option>Hindi</option><option>Hinglish</option></select></div><div className="settings-save-bar"><div><b>Preferences</b><span>Your changes are saved to your account.</span></div><button className="workspace-primary" disabled={busy}>{busy ? "Saving..." : "Save Changes"}</button></div>{message && <p className="workspace-message">{message}</p>}</form><section className="settings-info-grid"><div><span>🔒</span><b>Account privacy</b><p>Your workspace settings are tied to your account.</p></div><div><span>🧠</span><b>AI language</b><p>AI Career Chat can respond in English, Hindi or Hinglish based on your question.</p></div><div><span>✨</span><b>ResumeAI experience</b><p>Preferences do not change the truthfulness of analysis results.</p></div></section></div></SimplePage>;
-  }
+  if (page === "settings") return <SimplePage title="Settings" icon="⚙️" description="Control your ResumeAI preferences and notifications."><div className="professional-module settings-card"><div className="settings-row"><div><h3>📧 Email notifications</h3><p>Receive important account and feature updates.</p></div><input type="checkbox" checked={settings.email_notifications} onChange={e=>setSettings({...settings,email_notifications:e.target.checked})}/></div><div className="settings-row"><div><h3>📊 Weekly career summary</h3><p>Receive a weekly summary of your ResumeAI activity.</p></div><input type="checkbox" checked={settings.weekly_summary} onChange={e=>setSettings({...settings,weekly_summary:e.target.checked})}/></div><div className="settings-row"><div><h3>🌐 AI response language</h3><p>Career Chat can still understand English, Hindi and Hinglish.</p></div><select value={settings.language} onChange={e=>setSettings({...settings,language:e.target.value})}><option>English</option><option>Hindi</option><option>Hinglish</option></select></div><button className="workspace-primary" onClick={saveSettings} disabled={busy}>{busy ? "Saving..." : "Save Settings"}</button>{message && <p className="module-message">{message}</p>}</div></SimplePage>;
 
-  if (page === "analytics") return <SimplePage title="Analytics" icon="📊" description="Your saved workspace activity, not invented numbers."><div className="workspace-stats"><div className="workspace-stat"><span>📄</span><div><small>Resumes analyzed</small><strong>{analytics?.resumes ?? "—"}</strong></div></div><div className="workspace-stat"><span>🎯</span><div><small>Average resume score</small><strong>{analytics?.average_resume_score != null ? `${analytics.average_resume_score}/100` : "—"}</strong></div></div><div className="workspace-stat"><span>📋</span><div><small>Applications</small><strong>{analytics?.applications ?? "—"}</strong></div></div><div className="workspace-stat"><span>🎤</span><div><small>Mock interviews</small><strong>{analytics?.mock_interviews ?? "—"}</strong></div></div></div></SimplePage>;
+  if (page === "analytics") return <SimplePage title="Analytics" icon="📊" description="Real activity recorded in your ResumeAI account."><div className="analytics-grid-pro"><div className="analytics-card"><span>📋</span><small>Applications</small><strong>{analytics?.applications ?? "—"}</strong></div><div className="analytics-card"><span>🎤</span><small>Mock Interviews</small><strong>{analytics?.mock_interviews ?? "—"}</strong></div><div className="analytics-card"><span>🎯</span><small>Average Mock Score</small><strong>{analytics?.average_mock_score != null ? `${analytics.average_mock_score}%` : "—"}</strong></div></div>{message && <p className="module-message">{message}</p>}</SimplePage>;
 
-  if (page === "premium") return <SimplePage title="Premium" icon="⭐" description="Premium is available only after a real payment gateway is configured."><div className="workspace-module"><h2>⭐ ResumeAI Premium</h2><p>{premium?.message || "Payment setup is not active yet."}</p></div></SimplePage>;
+  if (page === "premium") return <SimplePage title="ResumeAI Premium" icon="👑" description="Premium features are being prepared for a future launch."><div className="premium-coming-soon"><div className="premium-hero"><div className="premium-crown">👑</div><span className="eyebrow">RESUMEAI PREMIUM</span><h2>Premium is coming soon 🚀</h2><p>We're building advanced career tools to make ResumeAI even more powerful. Premium is not available for purchase yet.</p><div className="premium-badge">✨ No payment required right now</div></div><div className="premium-features"><h3>What you can expect</h3><div className="premium-feature-grid"><div>✨<b>Advanced AI Resume Analysis</b><span>Deeper, more personalized resume recommendations.</span></div><div>🎯<b>ATS Optimization</b><span>Improve structure and keyword alignment for target roles.</span></div><div>📄<b>Premium Resume Templates</b><span>More professional, job-ready resume designs.</span></div><div>🤖<b>Advanced Career Advisor</b><span>More detailed career guidance based on your goals.</span></div><div>🎤<b>Advanced Mock Interviews</b><span>Role-specific practice and richer answer feedback.</span></div><div>💼<b>Job Match Insights</b><span>Understand how closely a resume fits a job.</span></div><div>🔄<b>Multiple Resume Versions</b><span>Create tailored versions for different roles.</span></div><div>📊<b>Advanced Career Analytics</b><span>Track progress across your resume and career activity.</span></div><div>🪄<b>Smart Resume Enhancement</b><span>More powerful formatting and content improvement tools.</span></div></div></div><button className="premium-notify" onClick={() => setMessage("Premium launch notifications will be available when the feature is ready.")}>🔔 Notify Me When Premium Launches</button>{message && <p className="module-message">{message}</p>}</div></SimplePage>;
 
   return null;
 }
@@ -538,6 +410,9 @@ function App() {
   ] = useState(null);
 
   const [enhancedResume, setEnhancedResume] =
+    useState("");
+
+  const [enhancedPhotoDataUrl, setEnhancedPhotoDataUrl] =
     useState("");
 
   const [enhancedPdf, setEnhancedPdf] =
@@ -653,6 +528,7 @@ function App() {
     setAiStatus("");
 
     setEnhancedResume("");
+    setEnhancedPhotoDataUrl("");
     setEnhancedPdf("");
     setEnhancedFilename("");
     setEnhanceError("");
@@ -1000,6 +876,10 @@ function App() {
 
       setEnhancedResume(
         data.enhanced_resume || ""
+      );
+
+      setEnhancedPhotoDataUrl(
+        data.photo_data_url || ""
       );
 
       setEnhancedPdf(
@@ -1448,7 +1328,7 @@ function App() {
           )}
         </div>
       </header>
-      <aside className="workspace-sidebar"><div className="workspace-side-label">WORKSPACE</div><button className={activePage === "dashboard" ? "active" : ""} onClick={() => setActivePage("dashboard")}>⌂ <span>Dashboard</span></button><button className={activePage === "resume" ? "active" : ""} onClick={() => setActivePage("resume")}>▣ <span>Resume Analyzer</span></button><button className={activePage === "mocks" ? "active" : ""} onClick={() => setActivePage("mocks")}>◉ <span>Mocks</span></button><button className={activePage === "jobs" ? "active" : ""} onClick={() => setActivePage("jobs")}>▣ <span>Jobs</span></button><button className={activePage === "applications" ? "active" : ""} onClick={() => setActivePage("applications")}>➤ <span>My Applications</span></button><button className={activePage === "profile" ? "active" : ""} onClick={() => setActivePage("profile")}>◯ <span>Profile</span></button><button className={activePage === "settings" ? "active" : ""} onClick={() => setActivePage("settings")}>⚙ <span>Settings</span></button><div className="workspace-premium"><span>✦</span><h3>Upgrade to Premium</h3><p>Advanced AI tools and more career features.</p><button onClick={() => setActivePage("premium")}>Upgrade — ₹20</button></div><div className="workspace-side-footer"><b>ResumeAI</b><span>Build Better Resumes.<br/>Get Better Jobs.</span></div></aside>
+      <aside className="workspace-sidebar"><div className="workspace-side-label">WORKSPACE</div><button className={activePage === "dashboard" ? "active" : ""} onClick={() => setActivePage("dashboard")}>⌂ <span>Dashboard</span></button><button className={activePage === "resume" ? "active" : ""} onClick={() => setActivePage("resume")}>▣ <span>Resume Analyzer</span></button><button className={activePage === "mocks" ? "active" : ""} onClick={() => setActivePage("mocks")}>◉ <span>Mocks</span></button><button className={activePage === "jobs" ? "active" : ""} onClick={() => setActivePage("jobs")}>▣ <span>Jobs</span></button><button className={activePage === "applications" ? "active" : ""} onClick={() => setActivePage("applications")}>➤ <span>My Applications</span></button><button className={activePage === "profile" ? "active" : ""} onClick={() => setActivePage("profile")}>◯ <span>Profile</span></button><button className={activePage === "settings" ? "active" : ""} onClick={() => setActivePage("settings")}>⚙ <span>Settings</span></button><div className="workspace-premium"><span>✦</span><h3>Upgrade to Premium</h3><p>Advanced AI tools and more career features.</p><button onClick={() => setActivePage("premium")}>Premium Coming Soon 🚀</button></div><div className="workspace-side-footer"><b>ResumeAI</b><span>Build Better Resumes.<br/>Get Better Jobs.</span></div></aside>
       <div className="workspace-content">
         {activePage === "dashboard" && <DashboardHome />}
         {activePage === "mocks" && <WorkspaceModules page="mocks" currentUser={currentUser} onNavigate={setActivePage} />}
@@ -1662,142 +1542,192 @@ function App() {
             </div>
           </div>
 
-          {/* SCORE + OVERVIEW */}
+          {/* SCORE + OVERVIEW — FINAL DESIGN */}
 
-          <div className="dashboard-grid">
-            <section className="score-card">
-              <div className="card-heading">
-                <span>🎯</span>
-                Resume Score
+          <div className="final-score-layout">
+            <section className={`final-score-hero ${scoreInfo.className}`}>
+              <div className="final-score-topline">
+                <span className="final-score-kicker">RESUME ANALYSIS</span>
+                <span className="final-score-status">✓ Analysis Complete</span>
               </div>
 
-              <div
-                className={`score-circle ${scoreInfo.className}`}
-              >
-                <strong>
-                  {score}
-                </strong>
+              <div className="final-score-main">
+                <div
+                  className="final-score-ring"
+                  style={{ "--score": `${Math.max(0, Math.min(100, score))}%` }}
+                >
+                  <div className="final-score-ring-inner">
+                    <strong>{score}</strong>
+                    <span>/100</span>
+                    <small>Overall Score</small>
+                  </div>
+                </div>
 
-                <span>
-                  / 100
-                </span>
+                <div className="final-score-verdict">
+                  <div className="final-score-emoji">{scoreInfo.emoji}</div>
+                  <h2>{scoreInfo.label}</h2>
+                  <p>{result.verdict_message || scoreInfo.message}</p>
+                  <div className="final-score-pill">
+                    <span>●</span> {score >= 80 ? "Good to Go" : score >= 60 ? "Needs Improvement" : "Needs Attention"}
+                  </div>
+                </div>
               </div>
-
-              <div
-                style={{
-                  fontSize:
-                    "2.1rem",
-                  marginTop:
-                    "4px",
-                }}
-              >
-                {scoreInfo.emoji}
-              </div>
-
-              <h2>
-                {scoreInfo.label}
-              </h2>
-
-              <p>
-                {result.verdict_message ||
-                  scoreInfo.message}
-              </p>
 
               <button
                 type="button"
-                className="details-button"
-                onClick={() =>
-                  setShowScoreDetails(
-                    !showScoreDetails
-                  )
-                }
+                className="final-details-toggle"
+                onClick={() => setShowScoreDetails(!showScoreDetails)}
+                aria-expanded={showScoreDetails}
               >
-                {showScoreDetails
-                  ? "Hide Score Details ↑"
-                  : "View Score Details ↓"}
+                <span>View Score Details</span>
+                <span>{showScoreDetails ? "↑" : "→"}</span>
               </button>
 
               {showScoreDetails && (
-                <div className="why-score">
-                  <h3>
-                    Why this score?
-                  </h3>
+                <div className="final-score-details">
+                  <div className="final-details-heading">
+                    <div>
+                      <span>📊</span>
+                      <div>
+                        <h3>How your score was calculated</h3>
+                        <p>Based on the evidence and content detected in your resume.</p>
+                      </div>
+                    </div>
+                  </div>
 
-                  {Array.isArray(
-                    result.why_score
-                  ) &&
-                  result.why_score.length >
-                    0 ? (
-                    <ul>
-                      {result.why_score.map(
-                        (
-                          item,
-                          index
-                        ) => (
-                          <li
-                            key={
-                              index
-                            }
-                          >
-                            {item}
-                          </li>
-                        )
-                      )}
-                    </ul>
-                  ) : (
-                    <p className="muted">
-                      Your score is calculated
-                      from content quality,
-                      resume structure,
-                      evidence and ATS-related
-                      factors.
-                    </p>
+                  <div className="final-detail-grid">
+                    {[
+                      ["contact", "Contact Information", "👤", 10],
+                      ["summary", "Summary / Objective", "📄", 10],
+                      ["skills", "Skills", "🛠️", 10],
+                      ["education", "Education", "🎓", 8],
+                      ["experience", "Experience", "💼", 15],
+                      ["projects", "Projects", "💻", 10],
+                      ["impact", "Impact & Evidence", "📈", 10],
+                      ["ats", "ATS Readiness", "🛡️", 10],
+                    ].map(([key, label, icon, max]) => {
+                      const raw = Number(breakdown?.[key] || 0);
+                      const pct = Math.max(0, Math.min(100, Math.round((raw / max) * 100)));
+                      return (
+                        <div className="final-detail-row" key={key}>
+                          <div className="final-detail-label">
+                            <span>{icon}</span>
+                            <b>{label}</b>
+                            <em>{raw}/{max}</em>
+                          </div>
+                          <div className="final-detail-track">
+                            <span style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {Array.isArray(result.why_score) && result.why_score.length > 0 && (
+                    <div className="final-why-score">
+                      <h4>Key reasons behind your score</h4>
+                      <ul>
+                        {result.why_score.slice(0, 5).map((item, index) => (
+                          <li key={index}><span>✓</span>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
                   )}
                 </div>
               )}
             </section>
 
-            <section className="overview-card">
-              <div className="card-heading">
-                <span>📋</span>
-                Resume Overview
+            <section className="final-section-analysis">
+              <div className="final-panel-title">
+                <div>
+                  <span>📊</span>
+                  <div>
+                    <h2>Section-wise Analysis</h2>
+                    <p>See which parts of your resume are strongest.</p>
+                  </div>
+                </div>
               </div>
 
-              <div className="section-status-list">
-                {SECTION_LIST.map(
-                  ([key, label]) => {
-                    const present =
-                      detectedSections.includes(
-                        key
-                      );
-
-                    return (
-                      <div
-                        className="section-status"
-                        key={key}
-                      >
-                        <span>
-                          {label}
-                        </span>
-
-                        <span
-                          className={
-                            present
-                              ? "status-present"
-                              : "status-missing"
-                          }
-                        >
-                          {present
-                            ? "✓ Present"
-                            : "✕ Missing"}
-                        </span>
+              <div className="final-section-list">
+                {[
+                  ["contact", "Contact Information", "👤", 10],
+                  ["summary", "Summary / Objective", "📄", 10],
+                  ["skills", "Skills", "🛠️", 10],
+                  ["education", "Education", "🎓", 8],
+                  ["experience", "Experience", "💼", 15],
+                  ["projects", "Projects", "💻", 10],
+                  ["certifications", "Certifications", "🏅", 2],
+                ].map(([key, label, icon, max]) => {
+                  const raw = Number(breakdown?.[key] || 0);
+                  const present = detectedSections.includes(key) || raw > 0;
+                  const pct = Math.max(0, Math.min(100, Math.round((raw / max) * 100)));
+                  return (
+                    <div className="final-section-row" key={key}>
+                      <div className="final-section-name">
+                        <span>{icon}</span>
+                        <b>{label}</b>
+                        <small>{raw}/{max}</small>
                       </div>
-                    );
-                  }
-                )}
+                      <div className="final-section-track">
+                        <span className={pct < 60 ? "low" : ""} style={{ width: `${present ? Math.max(pct, 8) : 0}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="final-quick-summary">
+              <div className="final-panel-title">
+                <div>
+                  <span>💡</span>
+                  <div>
+                    <h2>Quick Summary</h2>
+                    <p>Your most important takeaways.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="final-summary-list">
+                {(strengths.length > 0 ? strengths.slice(0, 3) : [
+                  "Resume structure has been analyzed.",
+                  "Your content has been checked for evidence.",
+                  "Use the improvement areas below to strengthen the resume.",
+                ]).map((item, index) => (
+                  <div className="final-summary-item positive" key={`s-${index}`}>
+                    <span>✓</span><p>{item}</p>
+                  </div>
+                ))}
+                {(suggestions.length > 0 ? suggestions.slice(0, 2) : []).map((item, index) => (
+                  <div className="final-summary-item warning" key={`w-${index}`}>
+                    <span>!</span><p>{item}</p>
+                  </div>
+                ))}
               </div>
             </section>
           </div>
+
+          {/* RESUME OVERVIEW */}
+
+          <section className="report-card final-resume-overview">
+            <div className="card-heading">
+              <span>📋</span>
+              Resume Overview
+            </div>
+            <div className="section-status-list">
+              {SECTION_LIST.map(([key, label]) => {
+                const present = detectedSections.includes(key);
+                return (
+                  <div className="section-status" key={key}>
+                    <span>{label}</span>
+                    <span className={present ? "status-present" : "status-missing"}>
+                      {present ? "✓ Present" : "✕ Missing"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
 
           {/* QUICK INSIGHTS */}
 
@@ -2496,7 +2426,8 @@ function App() {
 
                 <div className="resume-paper">
                   {renderEnhancedPreview(
-                    enhancedResume
+                    enhancedResume,
+                    enhancedPhotoDataUrl
                   )}
                 </div>
               </div>
