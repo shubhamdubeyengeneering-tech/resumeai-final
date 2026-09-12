@@ -11,7 +11,7 @@ import pytesseract
 from PIL import Image
 from docx import Document
 from dotenv import load_dotenv
-from fastapi import BackgroundTasks, FastAPI, File, Form, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from google import genai
@@ -41,6 +41,8 @@ from reportlab.lib.utils import ImageReader
 
 load_dotenv()
 
+from auth import get_current_user, get_db
+
 app = FastAPI(title="ResumeAI Backend")
 
 app.add_middleware(
@@ -51,6 +53,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+
+# =========================================================
+# PERSISTENT RESUME HISTORY
+# =========================================================
+def init_resume_history_db():
+    conn = get_db()
+    conn.execute("""CREATE TABLE IF NOT EXISTS resume_analyses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        filename TEXT NOT NULL,
+        score INTEGER NOT NULL,
+        analysis_json TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    )""")
+    conn.commit()
+    conn.close()
+
+init_resume_history_db()
 
 # =========================================================
 # GEMINI
@@ -3489,6 +3510,7 @@ def root():
 async def analyze_resume(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
+    user=Depends(get_current_user),
 ):
 
     filename = file.filename or ""
@@ -3555,6 +3577,20 @@ async def analyze_resume(
         analysis = analyze_resume_text(
             text
         )
+
+        conn = get_db()
+        conn.execute(
+            "INSERT INTO resume_analyses(user_id, filename, score, analysis_json, created_at) VALUES(?,?,?,?,?)",
+            (
+                user['id'],
+                filename,
+                int(analysis.get('score', 0)),
+                json.dumps(analysis, ensure_ascii=False),
+                __import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat(),
+            ),
+        )
+        conn.commit()
+        conn.close()
 
         job_id = str(
             uuid.uuid4()

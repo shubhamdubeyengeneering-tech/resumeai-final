@@ -360,6 +360,14 @@ function App() {
   const [authMessage, setAuthMessage] = useState("");
   const [authMessageType, setAuthMessageType] = useState("");
 
+  const [dashboardStats, setDashboardStats] = useState({
+    total_resumes: 0,
+    latest_score: null,
+    mock_interviews: 0,
+    applications: 0,
+    average_mock_score: null,
+  });
+
   const [file, setFile] = useState(null);
 
   const [photo, setPhoto] = useState(null);
@@ -469,6 +477,33 @@ function App() {
 
   const breakdown =
     result?.breakdown || {};
+
+  useEffect(() => {
+    if (!currentUser) return;
+    const token = localStorage.getItem("resumeai_token");
+    if (!token) return;
+
+    fetch(`${API_URL}/api/dashboard`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (response.status === 401) {
+          localStorage.removeItem("resumeai_token");
+          localStorage.removeItem("resumeai_user");
+          setCurrentUser(null);
+          setAuthMessage("Please log in again to this backend.");
+          setAuthMessageType("error");
+          return null;
+        }
+        if (!response.ok) throw new Error(data.detail || "Could not load dashboard.");
+        return data;
+      })
+      .then((data) => {
+        if (data?.dashboard) setDashboardStats(data.dashboard);
+      })
+      .catch((err) => console.error("Dashboard load failed:", err));
+  }, [currentUser]);
 
   function handleFileChange(event) {
     const selectedFile =
@@ -630,6 +665,10 @@ function App() {
           `${API_URL}/analyze`,
           {
             method: "POST",
+            headers: (() => {
+              const token = localStorage.getItem("resumeai_token");
+              return token ? { Authorization: `Bearer ${token}` } : {};
+            })(),
             body: formData,
           }
         );
@@ -648,6 +687,18 @@ function App() {
       }
 
       setResult(data);
+
+      const dashboardToken = localStorage.getItem("resumeai_token");
+      if (dashboardToken) {
+        fetch(`${API_URL}/api/dashboard`, {
+          headers: { Authorization: `Bearer ${dashboardToken}` },
+        })
+          .then((r) => r.ok ? r.json() : null)
+          .then((d) => {
+            if (d?.dashboard) setDashboardStats(d.dashboard);
+          })
+          .catch(() => {});
+      }
 
       const jobId =
         data.resume_job_id ||
@@ -1218,10 +1269,10 @@ function App() {
           <button className="workspace-primary" onClick={() => setActivePage("resume")}>{analyzed ? "Analyze New Resume →" : "Analyze Resume →"}</button>
         </div>
         <div className="workspace-stats">
-          <div className="workspace-stat"><span>📄</span><div><small>Total Resumes</small><strong>{analyzed ? 1 : 0}</strong><em>{analyzed ? "1 analyzed" : "No resume yet"}</em></div></div>
-          <div className="workspace-stat"><span>🎯</span><div><small>Latest Score</small><strong>{analyzed ? `${score}%` : "—"}</strong><em>{analyzed ? scoreInfo.label : "Analyze a resume first"}</em></div></div>
-          <div className="workspace-stat"><span>💼</span><div><small>Job Matches</small><strong>—</strong><em>Live jobs coming next</em></div></div>
-          <div className="workspace-stat"><span>🎤</span><div><small>Mock Interviews</small><strong>—</strong><em>Practice module</em></div></div>
+          <div className="workspace-stat"><span>📄</span><div><small>Total Resumes</small><strong>{dashboardStats.total_resumes}</strong><em>{dashboardStats.total_resumes ? `${dashboardStats.total_resumes} analyzed` : "No resume yet"}</em></div></div>
+          <div className="workspace-stat"><span>🎯</span><div><small>Latest Score</small><strong>{dashboardStats.latest_score != null ? `${dashboardStats.latest_score}%` : "—"}</strong><em>{dashboardStats.latest_score != null ? getScoreInfo(dashboardStats.latest_score).label : "Analyze a resume first"}</em></div></div>
+          <div className="workspace-stat"><span>💼</span><div><small>Applications</small><strong>{dashboardStats.applications}</strong><em>{dashboardStats.applications ? "Tracked applications" : "No applications yet"}</em></div></div>
+          <div className="workspace-stat"><span>🎤</span><div><small>Mock Interviews</small><strong>{dashboardStats.mock_interviews}</strong><em>{dashboardStats.mock_interviews ? "Sessions completed" : "No interviews yet"}</em></div></div>
         </div>
         <div className="workspace-columns">
           <section className="workspace-card workspace-score-card">

@@ -12,6 +12,14 @@ def init_feature_db():
     conn.execute('''CREATE TABLE IF NOT EXISTS settings (user_id INTEGER PRIMARY KEY, email_notifications INTEGER DEFAULT 1, weekly_summary INTEGER DEFAULT 1, language TEXT DEFAULT 'English', updated_at TEXT NOT NULL)''')
     conn.execute('''CREATE TABLE IF NOT EXISTS applications (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, company TEXT NOT NULL, role TEXT NOT NULL, location TEXT DEFAULT '', url TEXT DEFAULT '', status TEXT DEFAULT 'Applied', notes TEXT DEFAULT '', applied_at TEXT NOT NULL)''')
     conn.execute('''CREATE TABLE IF NOT EXISTS mock_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, role TEXT NOT NULL, question TEXT NOT NULL, answer TEXT DEFAULT '', score INTEGER, feedback TEXT DEFAULT '', created_at TEXT NOT NULL)''')
+    conn.execute('''CREATE TABLE IF NOT EXISTS resume_analyses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        filename TEXT NOT NULL,
+        score INTEGER NOT NULL,
+        analysis_json TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    )''')
     conn.commit(); conn.close()
 init_feature_db()
 
@@ -132,6 +140,60 @@ def jobs(search:str='',limit:int=12,user=Depends(get_current_user)):
         return {'success':True,'jobs':out,'source':'Remotive'}
     except Exception as exc:
         raise HTTPException(502, f'Live jobs service is temporarily unavailable: {exc}')
+
+
+# =========================================================
+# RESUME HISTORY / DASHBOARD
+# =========================================================
+
+def save_resume_analysis(user_id: int, filename: str, score: int, analysis: dict):
+    conn = db()
+    conn.execute(
+        "INSERT INTO resume_analyses(user_id, filename, score, analysis_json, created_at) VALUES(?,?,?,?,?)",
+        (user_id, filename, int(score), json.dumps(analysis, ensure_ascii=False), now()),
+    )
+    conn.commit()
+    conn.close()
+
+@features_router.get('/dashboard')
+def dashboard(user=Depends(get_current_user)):
+    conn = db()
+    resume_count = conn.execute(
+        "SELECT COUNT(*) AS total FROM resume_analyses WHERE user_id=?", (user['id'],)
+    ).fetchone()['total']
+    latest = conn.execute(
+        "SELECT filename, score, created_at FROM resume_analyses WHERE user_id=? ORDER BY id DESC LIMIT 1",
+        (user['id'],)
+    ).fetchone()
+    mock_row = conn.execute(
+        "SELECT COUNT(*) AS total, AVG(score) AS avg FROM mock_sessions WHERE user_id=? AND score IS NOT NULL",
+        (user['id'],)
+    ).fetchone()
+    app_count = conn.execute(
+        "SELECT COUNT(*) AS total FROM applications WHERE user_id=?", (user['id'],)
+    ).fetchone()['total']
+    conn.close()
+    return {
+        'success': True,
+        'dashboard': {
+            'total_resumes': int(resume_count or 0),
+            'latest_score': int(latest['score']) if latest else None,
+            'latest_resume': dict(latest) if latest else None,
+            'mock_interviews': int(mock_row['total'] or 0),
+            'average_mock_score': round(float(mock_row['avg']), 1) if mock_row['avg'] is not None else None,
+            'applications': int(app_count or 0),
+        }
+    }
+
+@features_router.get('/resumes')
+def resume_history(user=Depends(get_current_user)):
+    conn = db()
+    rows = conn.execute(
+        "SELECT id, filename, score, created_at FROM resume_analyses WHERE user_id=? ORDER BY id DESC LIMIT 50",
+        (user['id'],)
+    ).fetchall()
+    conn.close()
+    return {'success': True, 'resumes': [dict(r) for r in rows]}
 
 @features_router.get('/analytics')
 def analytics(user=Depends(get_current_user)):
