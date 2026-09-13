@@ -147,37 +147,32 @@ def extract_from_pdf(data: bytes) -> str:
 
         extracted = "\n\n".join(pages)
 
-        # OCR fallback for scanned PDFs
+        # OCR fallback only when the PDF has little/no selectable text.
+        # Do not force OCR on short-but-valid text PDFs because Tesseract may
+        # not be installed on every machine. If OCR is unavailable, keep the
+        # extracted PDF text and let the resume validator decide.
         if len(extracted.strip()) < 120:
-
             ocr_pages = []
+            try:
+                for page in doc:
+                    pix = page.get_pixmap(
+                        matrix=fitz.Matrix(2.0, 2.0),
+                        alpha=False,
+                    )
+                    image = Image.frombytes(
+                        "RGB",
+                        [pix.width, pix.height],
+                        pix.samples,
+                    )
+                    ocr_text = pytesseract.image_to_string(image)
+                    if ocr_text.strip():
+                        ocr_pages.append(ocr_text)
+            except Exception as ocr_error:
+                print("PDF OCR fallback unavailable:", repr(ocr_error))
 
-            for page in doc:
-
-                pix = page.get_pixmap(
-                    matrix=fitz.Matrix(
-                        1.5,
-                        1.5,
-                    ),
-                    alpha=False,
-                )
-
-                image = Image.frombytes(
-                    "RGB",
-                    [pix.width, pix.height],
-                    pix.samples,
-                )
-
-                ocr_text = pytesseract.image_to_string(
-                    image
-                )
-
-                if ocr_text.strip():
-                    ocr_pages.append(ocr_text)
-
-            extracted = "\n\n".join(
-                ocr_pages
-            )
+            ocr_extracted = "\n\n".join(ocr_pages)
+            if len(ocr_extracted.strip()) > len(extracted.strip()):
+                extracted = ocr_extracted
 
         return clean_text(extracted)
 
@@ -281,72 +276,94 @@ async def extract_resume_text(
 # =========================================================
 
 def looks_like_resume(text: str, filename: str = "") -> bool:
-    """Conservative resume detector that accepts varied real-world resume layouts.
-    It rejects obvious non-resume documents while not requiring fixed section names.
+    """Conservative resume classifier designed to reduce false negatives.
+
+    It accepts normal student/fresher/professional resumes even when a PDF has
+    weak extraction, while explicitly rejecting common non-resume documents.
     """
-    if not text or len(text.strip()) < 50:
+    cleaned = re.sub(r"\s+", " ", (text or "")).strip()
+    if len(cleaned) < 35:
         return False
 
-    lower = text.lower()
-    name = (filename or "").lower()
+    lower = cleaned.lower()
+    filename_lower = (filename or "").lower()
 
-    # Obvious document types that should never be scored as resumes.
-    non_resume_terms = [
-        "marksheet", "mark sheet", "statement of marks", "grade sheet",
-        "semester result", "academic transcript", "official transcript",
-        "fee receipt", "payment receipt", "invoice", "admit card",
-        "hall ticket", "question paper", "answer key", "attendance sheet",
-        "time table", "timetable", "bonafide certificate", "migration certificate",
+    obvious_non_resume = [
+        "marksheet", "mark sheet", "statement of marks", "transcript",
+        "transcript of records", "grade card", "report card", "fee receipt",
+        "fee structure", "invoice", "tax invoice", "bill", "admit card",
+        "hall ticket", "bank statement", "medical report", "purchase order",
+        "challan", "time table", "timetable", "attendance sheet", "fee payment receipt",
     ]
-    if any(term in lower or term in name for term in non_resume_terms):
+    if any(term in filename_lower for term in obvious_non_resume):
+        return False
+    if any(term in lower for term in obvious_non_resume):
         return False
 
-    section_signals = {
-        "education", "academic", "skills", "technical skills", "experience",
-        "work experience", "professional experience", "employment", "projects",
-        "project", "internship", "internships", "certifications", "certification",
-        "achievements", "awards", "summary", "professional summary", "objective",
-        "profile", "career objective", "work history", "professional profile",
+    email = bool(re.search(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", cleaned, re.I))
+    phone = bool(re.search(r"(?:\+91[\s-]?)?[6-9]\d{9}\b", cleaned))
+    linkedin = "linkedin.com" in lower or "linkedin " in lower
+    github = "github.com" in lower or "github " in lower
+
+    section_patterns = {
+        "education": r"\b(education|academic background|qualifications?|b\.?tech|bachelor|master|university|college)\b",
+        "skills": r"\b(skills?|technical skills?|technologies|tech stack|core competencies)\b",
+        "experience": r"\b(experience|work experience|professional experience|employment|work history)\b",
+        "projects": r"\b(projects?|personal projects?|academic projects?)\b",
+        "internship": r"\b(internships?|intern experience)\b",
+        "certifications": r"\b(certifications?|certificates?|courses?)\b",
+        "achievements": r"\b(achievements?|awards?|honors?)\b",
+        "summary": r"\b(summary|professional summary|profile|objective|career objective|about me)\b",
+        "contact": r"\b(contact|email|phone|mobile)\b",
     }
-    section_hits = sum(1 for term in section_signals if re.search(rf"\b{re.escape(term)}\b", lower))
+    hits = {name for name, pattern in section_patterns.items() if re.search(pattern, lower)}
+    section_hits = len(hits)
 
-    email = bool(re.search(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", text, re.I))
-    phone = bool(re.search(r"(?:\+91[\s-]?)?[6-9]\d{9}\b", text))
-    linkedin = "linkedin.com" in lower or "linkedin" in lower
-    github = "github.com" in lower or "github" in lower
-    skills = detect_skills(text)
-    action_verbs = detect_action_verbs(text)
+    skills = detect_skills(cleaned)
+    action_verbs = detect_action_verbs(cleaned)
 
-    identity_terms = [
-        "resume", "curriculum vitae", "career", "professional", "developer",
-        "engineer", "analyst", "designer", "intern", "student", "software",
-        "technology", "programmer", "web developer", "data scientist", "manager",
-        "portfolio", "objective", "experience",
+    professional_terms = [
+        "developer", "engineer", "analyst", "designer", "consultant", "intern",
+        "student", "software", "technology", "programming", "python", "java",
+        "javascript", "react", "sql", "api", "database", "management", "research",
     ]
-    identity_hits = sum(1 for term in identity_terms if re.search(rf"\b{re.escape(term)}\b", lower))
+    professional_hits = sum(1 for term in professional_terms if re.search(rf"\b{re.escape(term)}\b", lower))
 
-    filename_hint = bool(re.search(r"(?:resume|cv|curriculum|profile)", name, re.I))
-    contact_hits = sum([email, phone, linkedin, github])
+    explicit_resume_name = any(term in filename_lower for term in ("resume", "cv", "curriculum", "biodata", "bio-data"))
+    explicit_resume_wording = bool(re.search(r"\b(resume|curriculum vitae|curriculum-vitae|cv)\b", lower))
 
-    # Strong structure: varied layouts with four or more recognizable sections.
+    # Strongly structured resumes should always pass.
     if section_hits >= 4:
         return True
 
-    # Most real resumes: contact details + at least two professional/structural signals.
-    if contact_hits >= 1 and section_hits >= 2 and (len(skills) >= 1 or bool(action_verbs) or identity_hits >= 1):
+    # Typical student/fresher resume: a few recognizable sections plus at least
+    # one career/contact signal. This intentionally favors avoiding false
+    # rejection over requiring perfect heading extraction.
+    if section_hits >= 3 and (email or phone or linkedin or github or len(skills) >= 1 or professional_hits >= 1):
         return True
 
-    # Fresh graduate / compact resume layouts.
-    if section_hits >= 3 and (len(skills) >= 1 or "education" in lower or identity_hits >= 2):
+    # Normal professional resume with two or more recognizable sections.
+    if section_hits >= 2 and (email or phone or linkedin or github or len(skills) >= 1 or action_verbs or professional_hits >= 1):
         return True
 
-    # Some resumes use almost no conventional headings. A filename hint plus professional signals is enough.
-    if filename_hint and (contact_hits >= 1 or len(skills) >= 2 or identity_hits >= 2):
+    # Many exported PDFs flatten headings or lose contact links. Accept when at
+    # least two independent resume signals remain in the extracted text.
+    resume_signals = sum([
+        bool(email or phone or linkedin or github),
+        section_hits >= 1,
+        len(skills) >= 1,
+        bool(action_verbs),
+        professional_hits >= 1,
+        bool(re.search(r"\b(b\.?tech|b\.?e\.?|bachelor|master|mba|mca|degree|university|college|internship|developer|engineer)\b", lower)),
+    ])
+    if len(cleaned) >= 50 and resume_signals >= 2:
         return True
 
-    # Explicit CV/resume language is a useful final signal, while obvious non-resumes
-    # were already rejected above.
-    if "curriculum vitae" in lower or re.search(r"\bresume\b", lower):
+    # Filename is supporting evidence, not the only reason to accept arbitrary text.
+    if explicit_resume_name and (email or phone or linkedin or github or section_hits >= 1 or len(skills) >= 1 or professional_hits >= 1):
+        return True
+
+    if explicit_resume_wording and (section_hits >= 1 or email or phone or len(skills) >= 1 or professional_hits >= 1):
         return True
 
     return False
@@ -3006,6 +3023,22 @@ def validate_uploaded_photo(
 
 
 # =========================================================
+# PHOTO DATA URL FOR WEB PREVIEW
+# =========================================================
+
+def photo_to_data_url(photo_data: bytes | None) -> str:
+    if not photo_data:
+        return ""
+    try:
+        image = Image.open(io.BytesIO(photo_data)).convert("RGB")
+        buffer = io.BytesIO()
+        image.save(buffer, format="JPEG", quality=90, optimize=True)
+        return "data:image/jpeg;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
+    except Exception:
+        return ""
+
+
+# =========================================================
 # PROFESSIONAL PDF BUILDER
 # =========================================================
 
@@ -3502,12 +3535,11 @@ async def analyze_resume(
             data,
         )
 
-        if len(text.strip()) < 50:
-
+        if len(text.strip()) < 35:
             return {
                 "success": False,
                 "message": (
-                    "Could not extract enough text. Please upload a clear resume."
+                    "We could not read enough text from this file. Please upload a clearer resume PDF/DOCX or a high-quality JPG/PNG."
                 ),
             }
 
@@ -4037,16 +4069,6 @@ async def enhance_resume(
             ).decode("ascii")
         )
 
-        photo_data_url = ""
-        if photo_data:
-            try:
-                image = Image.open(io.BytesIO(photo_data)).convert("RGB")
-                image_buffer = io.BytesIO()
-                image.save(image_buffer, format="JPEG", quality=92)
-                photo_data_url = "data:image/jpeg;base64," + base64.b64encode(image_buffer.getvalue()).decode("ascii")
-            except Exception:
-                photo_data_url = ""
-
         return {
             "success": True,
 
@@ -4074,11 +4096,11 @@ async def enhance_resume(
                 photo_data
             ),
 
-            "photo_data_url": photo_data_url,
-
             "photo_source": (
                 photo_source
             ),
+
+            "photo_data_url": photo_to_data_url(photo_data),
         }
 
     except Exception as exc:
@@ -4107,310 +4129,6 @@ def generate_enhanced_resume(
     return generate_professional_resume_text(
         resume_text
     )
-
-
-
-# =========================================================
-# ADAPTIVE 10-QUESTION AI MOCK INTERVIEW
-# =========================================================
-
-mock_sessions_runtime: dict[str, dict[str, Any]] = {}
-
-
-class MockStartRequest(BaseModel):
-    role: str = Field(default="Software Engineer", min_length=2, max_length=120)
-
-
-class MockAnswerRequest(BaseModel):
-    answer: str = Field(min_length=1, max_length=5000)
-
-
-class MockEvaluationSchema(BaseModel):
-    score: int
-    verdict: str
-    correctness: str
-    feedback: str
-    next_question: str
-
-
-def _mock_fallback_evaluation(role: str, question: str, answer: str, question_number: int) -> dict[str, Any]:
-    words = re.findall(r"\b\w+\b", answer)
-    word_count = len(words)
-
-    score = 2
-    if word_count >= 35:
-        score += 2
-    elif word_count >= 18:
-        score += 1
-
-    evidence_terms = [
-        "because", "example", "for example", "result", "impact",
-        "built", "developed", "implemented", "tested", "learned",
-        "problem", "solution", "team", "project", "experience",
-    ]
-    lower = answer.lower()
-    evidence_hits = sum(1 for term in evidence_terms if term in lower)
-    score += min(3, evidence_hits)
-
-    if word_count < 8:
-        score = min(score, 2)
-
-    score = max(0, min(score, 10))
-
-    if score >= 8:
-        verdict = "Strong"
-        correctness = "The answer is relevant and gives enough substance to support the point."
-    elif score >= 5:
-        verdict = "Acceptable"
-        correctness = "The answer addresses the question, but the evidence or explanation could be stronger."
-    else:
-        verdict = "Needs work"
-        correctness = "The answer is too brief, unclear or insufficiently supported to demonstrate the required point."
-
-    next_topics = [
-        "technical depth",
-        "a project or practical example",
-        "problem-solving",
-        "debugging or learning from a mistake",
-        "teamwork and communication",
-        "trade-offs and decision making",
-        "role-specific technical knowledge",
-        "handling pressure or deadlines",
-        "career motivation",
-        "final reflection",
-    ]
-    topic = next_topics[min(question_number, len(next_topics) - 1)]
-    next_question = f"For the {role} role, tell me about {topic} and explain what you personally did."
-
-    return {
-        "score": score,
-        "verdict": verdict,
-        "correctness": correctness,
-        "feedback": "Give a more specific example, explain your reasoning, and make your personal contribution clear.",
-        "next_question": next_question,
-    }
-
-
-def _generate_mock_question(role: str, question_number: int, history: list[dict[str, Any]]) -> str:
-    if question_number == 1:
-        return f"Tell me about yourself and why you are interested in the {role} role."
-
-    if question_number == 2:
-        return f"What is one technical skill you would rely on in a {role} role, and how have you actually used it?"
-
-    if question_number == 3:
-        return "Tell me about a project or piece of work you are proud of. What problem did it solve and what was your contribution?"
-
-    if question_number == 4:
-        return "Describe a technical problem you faced. How did you investigate it and decide on a solution?"
-
-    if question_number == 5:
-        return "Suppose your solution works but is slow. What would you check first, and how would you improve it?"
-
-    if question_number == 6:
-        return "Tell me about a time you made a mistake or something did not work. What did you learn from it?"
-
-    if question_number == 7:
-        return "How would you explain a technical idea to someone who is not technical?"
-
-    if question_number == 8:
-        return f"What would you prioritize during your first few weeks in a {role} position?"
-
-    if question_number == 9:
-        return "Give an example that shows how you handle teamwork, disagreement or feedback."
-
-    return "What makes you ready for this role, and what is one area you are still working to improve?"
-
-
-def _evaluate_mock_answer(role: str, question: str, answer: str, question_number: int, history: list[dict[str, Any]]) -> dict[str, Any]:
-    if not gemini_client:
-        return _mock_fallback_evaluation(role, question, answer, question_number)
-
-    history_text = "\n".join(
-        f"Q{i + 1}: {item['question']}\nA{i + 1}: {item['answer']}"
-        for i, item in enumerate(history[-4:])
-    )
-
-    prompt = f"""
-You are an objective AI interviewer for ResumeAI.
-
-ROLE: {role}
-QUESTION NUMBER: {question_number} of 10
-CURRENT QUESTION: {question}
-
-CANDIDATE ANSWER:
-{answer}
-
-RECENT INTERVIEW CONTEXT:
-{history_text or "No previous answers."}
-
-Evaluate ONLY what the candidate actually said.
-
-Rules:
-- Do not give credit merely because the answer sounds confident.
-- If the answer is technically wrong, say so and score it accordingly.
-- If the question is open-ended, evaluate relevance, reasoning, accuracy, evidence and clarity rather than pretending there is one exact answer.
-- Never invent experience or facts for the candidate.
-- Score from 0 to 10.
-- "Strong" means clearly correct/relevant and sufficiently supported.
-- "Acceptable" means partly correct/relevant but missing depth or evidence.
-- "Needs work" means incorrect, irrelevant, unclear or too weak to demonstrate the point.
-- The next question MUST adapt to the candidate's answer. If the answer mentions a technology, project, decision, weakness, mistake or claim, use that as a follow-up when appropriate.
-- Keep the next question suitable for the role.
-- This is question {question_number}. If it is question 10, still provide a next_question field but it will not be shown.
-
-Return JSON matching the requested schema.
-"""
-
-    try:
-        response = gemini_generate(
-            prompt,
-            response_schema=MockEvaluationSchema,
-            temperature=0.2,
-        )
-        data = json.loads(response.text)
-        score = max(0, min(10, int(data.get("score", 0))))
-        return {
-            "score": score,
-            "verdict": data.get("verdict", "Needs work"),
-            "correctness": data.get("correctness", ""),
-            "feedback": data.get("feedback", ""),
-            "next_question": data.get("next_question", _generate_mock_question(role, question_number + 1, history)),
-        }
-    except Exception as exc:
-        print("Mock evaluation error:", repr(exc))
-        return _mock_fallback_evaluation(role, question, answer, question_number)
-
-
-@app.post("/api/mock/start")
-def start_adaptive_mock(
-    payload: MockStartRequest,
-    user=Depends(get_current_user),
-):
-    role = payload.role.strip() or "Software Engineer"
-    session_id = str(uuid.uuid4())
-
-    mock_sessions_runtime[session_id] = {
-        "user_id": user["id"],
-        "role": role,
-        "question_number": 1,
-        "history": [],
-        "scores": [],
-    }
-
-    return {
-        "success": True,
-        "session_id": session_id,
-        "role": role,
-        "question": _generate_mock_question(role, 1, []),
-        "question_number": 1,
-        "total_questions": 10,
-    }
-
-
-@app.post("/api/mock/{session_id}/answer")
-def answer_adaptive_mock(
-    session_id: str,
-    payload: MockAnswerRequest,
-    user=Depends(get_current_user),
-):
-    session = mock_sessions_runtime.get(session_id)
-
-    if not session:
-        return {
-            "success": False,
-            "message": "This interview session has expired. Please start a new interview.",
-        }
-
-    if session["user_id"] != user["id"]:
-        return {
-            "success": False,
-            "message": "You cannot access this interview session.",
-        }
-
-    question_number = int(session["question_number"])
-    question = session["history"][-1]["question"] if session["history"] else _generate_mock_question(session["role"], question_number, [])
-
-    answer = payload.answer.strip()
-    evaluation = _evaluate_mock_answer(
-        session["role"],
-        question,
-        answer,
-        question_number,
-        session["history"],
-    )
-
-    session["history"].append({
-        "question": question,
-        "answer": answer,
-        "score": evaluation["score"],
-        "verdict": evaluation["verdict"],
-    })
-    session["scores"].append(int(evaluation["score"]))
-
-    if question_number >= 10:
-        total_score = int(round(sum(session["scores"]) * 10 / 10))
-        strong_answers = sum(1 for s in session["scores"] if s >= 8)
-        average_score = round(sum(session["scores"]) / len(session["scores"]), 1)
-
-        if average_score >= 8:
-            overall_feedback = "Excellent interview performance. Your answers were consistently relevant, accurate and well supported."
-        elif average_score >= 6:
-            overall_feedback = "Solid interview performance. Your answers were generally useful, with room for stronger evidence and deeper reasoning."
-        elif average_score >= 4:
-            overall_feedback = "Developing interview performance. Focus on accuracy, clear reasoning and concrete examples."
-        else:
-            overall_feedback = "Your interview needs more preparation. Focus on answering the exact question, explaining your reasoning and using genuine examples."
-
-        final_result = {
-            "total_score": total_score,
-            "average_score": average_score,
-            "questions_completed": 10,
-            "strong_answers": strong_answers,
-            "overall_feedback": overall_feedback,
-        }
-
-        del mock_sessions_runtime[session_id]
-
-        return {
-            "success": True,
-            "completed": True,
-            "session_id": session_id,
-            "role": session["role"],
-            "evaluation": evaluation,
-            "final_result": final_result,
-            "total_questions": 10,
-        }
-
-    next_question_number = question_number + 1
-    next_question = evaluation.get("next_question") or _generate_mock_question(
-        session["role"],
-        next_question_number,
-        session["history"],
-    )
-
-    # Ensure the next question is not empty and that every session has exactly 10 questions.
-    session["question_number"] = next_question_number
-    session["history"].append({
-        "question": next_question,
-        "answer": "",
-        "score": None,
-        "verdict": "pending",
-    })
-
-    # Remove the placeholder from the history used for AI context; the next answer will replace it.
-    session["history"].pop()
-
-    return {
-        "success": True,
-        "completed": False,
-        "session_id": session_id,
-        "role": session["role"],
-        "evaluation": evaluation,
-        "next_question": next_question,
-        "next_question_number": next_question_number,
-        "total_questions": 10,
-    }
 
 
 # =========================================================

@@ -61,7 +61,7 @@ function getScoreInfo(score) {
 
   return {
     className: "poor",
-    label: "Needs Work",
+    label: "Weak Resume",
     emoji: "🛠️",
     message:
       "Your resume currently has several important gaps. Focus on the highest-priority improvements first.",
@@ -197,7 +197,9 @@ function WorkspaceModules({ page, currentUser, onNavigate }) {
   const [jobSearch, setJobSearch] = useState("");
   const [applications, setApplications] = useState([]);
   const [appForm, setAppForm] = useState({ company: "", role: "", location: "", url: "", status: "Applied", notes: "" });
-  const [profile, setProfile] = useState({ name: currentUser?.name || "", email: currentUser?.email || "", phone: "", location: "", headline: "", bio: "", skills: "" });
+  const emptyProfile = { name: currentUser?.name || "", email: currentUser?.email || "", phone: "", location: "", headline: "", bio: "", skills: "" };
+  const normalizeProfile = (value) => ({ ...emptyProfile, ...(value && typeof value === "object" ? value : {}) });
+  const [profile, setProfile] = useState(emptyProfile);
   const [settings, setSettings] = useState({ email_notifications: true, weekly_summary: true, language: "English" });
   const [analytics, setAnalytics] = useState(null);
   const [premium, setPremium] = useState(null);
@@ -216,7 +218,7 @@ function WorkspaceModules({ page, currentUser, onNavigate }) {
     if (!currentUser || !token) return;
     setMessage("");
     if (page === "applications") api("/api/applications").then(d => setApplications(d.applications || [])).catch(e => setMessage(e.message));
-    else if (page === "profile") api("/api/profile").then(d => setProfile(d.profile)).catch(e => setMessage(e.message));
+    else if (page === "profile") api("/api/profile").then(d => setProfile(normalizeProfile(d.profile))).catch(e => setMessage(e.message));
     else if (page === "settings") api("/api/settings").then(d => setSettings(d.settings)).catch(e => setMessage(e.message));
     else if (page === "analytics") api("/api/analytics").then(d => setAnalytics(d.analytics)).catch(e => setMessage(e.message));
     else if (page === "premium") api("/api/premium/status").then(setPremium).catch(e => setPremium({ message: "Premium is currently being prepared." }));
@@ -313,12 +315,107 @@ function WorkspaceModules({ page, currentUser, onNavigate }) {
   </SimplePage>;
 
   if (page === "applications") return <SimplePage title="My Applications" icon="📋" description="Track your real job applications, statuses and notes in one place.">
-    <div className="professional-module"><div className="application-overview"><div><span className="eyebrow">APPLICATION TRACKER</span><h2>Stay on top of your job search</h2><p>Every application you save appears here with its current status.</p></div><div className="application-count"><strong>{applications.length}</strong><span>Total Applications</span></div></div><form className="application-form" onSubmit={saveApplication}><input placeholder="Company" value={appForm.company} onChange={e => setAppForm({...appForm, company:e.target.value})} required/><input placeholder="Role" value={appForm.role} onChange={e => setAppForm({...appForm, role:e.target.value})} required/><input placeholder="Location" value={appForm.location} onChange={e => setAppForm({...appForm, location:e.target.value})}/><input placeholder="Job URL (optional)" value={appForm.url} onChange={e => setAppForm({...appForm, url:e.target.value})}/><select value={appForm.status} onChange={e => setAppForm({...appForm,status:e.target.value})}><option>Applied</option><option>Interview</option><option>Offer</option><option>Rejected</option><option>Withdrawn</option></select><textarea placeholder="Notes" value={appForm.notes} onChange={e => setAppForm({...appForm,notes:e.target.value})}/><button className="workspace-primary" disabled={busy}>{busy ? "Saving..." : "Add Application +"}</button></form>{message && <p className="module-message">{message}</p>}<div className="application-list">{applications.map(a => <article className="application-card" key={a.id}><div><span className="application-company-icon">🏢</span></div><div className="application-main"><h3>{a.company}</h3><p>{a.role}</p><small>{a.location || "Location not specified"}</small>{a.url && <a href={a.url} target="_blank" rel="noreferrer">Open Job Posting →</a>}</div><div className="application-actions"><select value={a.status} onChange={e => updateApplication(a.id,e.target.value)}><option>Applied</option><option>Interview</option><option>Offer</option><option>Rejected</option><option>Withdrawn</option></select><button className="danger-ghost" onClick={() => deleteApplication(a.id)}>Delete</button></div></article>)}{!applications.length && <div className="empty-module"><span>📋</span><h3>No applications yet</h3><p>Add your first application above to start tracking your progress.</p></div>}</div></div>
+    <div className="professional-module applications-pro animated-module">
+      <div className="applications-pro-header">
+        <div>
+          <span className="eyebrow">CAREER TRACKER</span>
+          <h2>My Applications</h2>
+          <p>One clean place to manage every opportunity and see your progress.</p>
+        </div>
+        <button className="workspace-primary glow-action" onClick={() => document.getElementById("application-form")?.scrollIntoView({ behavior: "smooth" })}>＋ Add Application</button>
+      </div>
+      <div className="application-kpi-grid application-kpi-pro">
+        {[
+          ["📋", "Total Applications", applications.length, "kpi-blue"],
+          ["📨", "Applied", applications.filter(a => a.status === "Applied").length, "kpi-sky"],
+          ["🎤", "Interviews", applications.filter(a => a.status === "Interview").length, "kpi-purple"],
+          ["🏆", "Offers", applications.filter(a => a.status === "Offer").length, "kpi-green"],
+        ].map(([icon, label, value, tone]) => (
+          <div className={`application-kpi ${tone}`} key={label}>
+            <span>{icon}</span><div><small>{label}</small><strong>{value}</strong><em>Live account data</em></div>
+          </div>
+        ))}
+      </div>
+      <div className="applications-workspace-grid">
+        <section className="application-panel application-add-panel">
+          <div className="panel-heading"><span>✨</span><div><h3>Add an opportunity</h3><p>Save a job you want to track.</p></div></div>
+          <form id="application-form" className="application-form application-form-pro application-form-modern" onSubmit={saveApplication}>
+            <label>Company<input placeholder="e.g. Google" value={appForm.company} onChange={e => setAppForm({...appForm,company:e.target.value})} required/></label>
+            <label>Role<input placeholder="e.g. Software Engineer" value={appForm.role} onChange={e => setAppForm({...appForm,role:e.target.value})} required/></label>
+            <label>Location<input placeholder="Remote / City" value={appForm.location} onChange={e => setAppForm({...appForm,location:e.target.value})}/></label>
+            <label>Status<select value={appForm.status} onChange={e => setAppForm({...appForm,status:e.target.value})}><option>Applied</option><option>Interview</option><option>Offer</option><option>Rejected</option><option>Withdrawn</option></select></label>
+            <label className="application-notes-field">Job URL<input placeholder="https://..." value={appForm.url} onChange={e => setAppForm({...appForm,url:e.target.value})}/></label>
+            <label className="application-notes-field">Notes<textarea rows="3" placeholder="Interview date, recruiter notes, next step..." value={appForm.notes} onChange={e => setAppForm({...appForm,notes:e.target.value})}/></label>
+            <button className="workspace-primary" disabled={busy}>{busy ? "Saving..." : "Save Application →"}</button>
+          </form>
+        </section>
+        <section className="application-panel application-list-panel">
+          <div className="panel-heading"><span>📈</span><div><h3>Application timeline</h3><p>Your saved opportunities appear here.</p></div></div>
+          <div className="application-list application-list-pro">
+            {applications.map(a => <article className="application-card application-card-pro animated-row" key={a.id}>
+              <div className="application-company-mark">{(a.company || "C").slice(0,1).toUpperCase()}</div>
+              <div className="application-main">
+                <div className="application-title-line"><h3>{a.company}</h3><span className={`application-status status-${String(a.status || "Applied").toLowerCase()}`}>{a.status}</span></div>
+                <p>{a.role}</p><small>📍 {a.location || "Location not specified"}</small>
+                {a.url && <a href={a.url} target="_blank" rel="noreferrer">Open Job Posting ↗</a>}
+              </div>
+              <div className="application-actions"><select value={a.status} onChange={e => updateApplication(a.id,e.target.value)} aria-label={`Update ${a.company} status`}><option>Applied</option><option>Interview</option><option>Offer</option><option>Rejected</option><option>Withdrawn</option></select><button className="danger-ghost" onClick={() => deleteApplication(a.id)}>Delete</button></div>
+            </article>)}
+            {!applications.length && <div className="empty-module application-empty"><span>🚀</span><h3>Your application tracker is ready</h3><p>Add your first opportunity and start building your career pipeline.</p></div>}
+          </div>
+        </section>
+      </div>
+      {message && <p className="module-message">{message}</p>}
+    </div>
   </SimplePage>;
 
-  if (page === "profile") return <SimplePage title="Profile" icon="👤" description="Manage the career information connected to your ResumeAI account."><div className="professional-module profile-card"><div className="profile-hero"><div className="profile-avatar-large">{(profile.name || "U").slice(0,1).toUpperCase()}</div><div><span className="eyebrow">YOUR CAREER PROFILE</span><h2>{profile.name || "Your Name"}</h2><p>{profile.headline || "Add a professional headline to complete your profile."}</p></div></div><form className="profile-grid" onSubmit={saveProfile}><label>Full Name<input value={profile.name} onChange={e=>setProfile({...profile,name:e.target.value})} placeholder="Your name" required/></label><label>Email<input value={profile.email} readOnly/></label><label>Phone<input value={profile.phone} onChange={e=>setProfile({...profile,phone:e.target.value})} placeholder="Phone number"/></label><label>Location<input value={profile.location} onChange={e=>setProfile({...profile,location:e.target.value})} placeholder="City, Country"/></label><label className="full">Professional Headline<input value={profile.headline} onChange={e=>setProfile({...profile,headline:e.target.value})} placeholder="e.g. Software Developer | React & Python"/></label><label className="full">About You<textarea value={profile.bio} onChange={e=>setProfile({...profile,bio:e.target.value})} placeholder="Short professional bio"/></label><label className="full">Skills<textarea value={profile.skills} onChange={e=>setProfile({...profile,skills:e.target.value})} placeholder="Python, React, FastAPI, SQL..."/></label><div className="form-actions full"><button className="workspace-primary" disabled={busy}>{busy ? "Saving..." : "Save Profile"}</button></div></form>{message && <p className="module-message">{message}</p>}</div></SimplePage>;
+  if (page === "profile") return <SimplePage title="Profile" icon="👤" description="Manage the career information connected to your ResumeAI account.">
+    <div className="professional-module profile-pro animated-module">
+      <div className="profile-pro-banner">
+        <div className="profile-avatar-xl">{(profile.name || "U").slice(0,1).toUpperCase()}</div>
+        <div className="profile-identity"><span className="eyebrow">YOUR CAREER IDENTITY</span><h2>{profile.name || "Your Name"} <span className="verified-dot">✓</span></h2><p>{profile.headline || "Aspiring professional · Complete your profile to stand out."}</p><div className="profile-meta"><span>✉️ {profile.email || "Email not added"}</span><span>📍 {profile.location || "Location not added"}</span><span>💼 ResumeAI Profile</span></div></div>
+        <div className="profile-completion"><strong>{Math.min(100, Math.round(([profile.name,profile.email,profile.phone,profile.location,profile.headline,profile.bio,profile.skills].filter(Boolean).length / 7) * 100))}%</strong><small>Profile complete</small></div>
+      </div>
+      <div className="profile-stat-strip"><div><span>🎯</span><strong>{profile.skills ? profile.skills.split(/[,|\n]+/).map(s => s.trim()).filter(Boolean).length : "—"}</strong><small>Skills on record</small></div><div><span>📄</span><strong>Ready</strong><small>Resume workspace</small></div><div><span>✨</span><strong>{profile.headline ? "Ready" : "Add"}</strong><small>Career headline</small></div></div>
+      <form className="profile-grid-pro profile-form-modern" onSubmit={saveProfile}>
+        <div className="profile-section-heading"><span>👤</span><div><h3>Personal information</h3><p>Keep the basics of your professional identity up to date.</p></div></div>
+        <label>Full Name<input value={profile.name} onChange={e=>setProfile({...profile,name:e.target.value})} placeholder="Your name" required/></label>
+        <label>Email Address<input value={profile.email} readOnly/></label>
+        <label>Phone Number<input value={profile.phone} onChange={e=>setProfile({...profile,phone:e.target.value})} placeholder="Phone number"/></label>
+        <label>Location<input value={profile.location} onChange={e=>setProfile({...profile,location:e.target.value})} placeholder="City, Country"/></label>
+        <div className="profile-section-heading"><span>💼</span><div><h3>Career information</h3><p>Tell ResumeAI how you want to present your professional profile.</p></div></div>
+        <label className="full">Professional Headline<input value={profile.headline} onChange={e=>setProfile({...profile,headline:e.target.value})} placeholder="e.g. Software Developer | React & Python"/></label>
+        <label className="full">Professional Summary<textarea rows="5" value={profile.bio} onChange={e=>setProfile({...profile,bio:e.target.value})} placeholder="Write a concise professional introduction..."/></label>
+        <label className="full">Skills & Technologies<textarea rows="3" value={profile.skills} onChange={e=>setProfile({...profile,skills:e.target.value})} placeholder="Python, React, FastAPI, SQL..."/></label>
+        <div className="profile-form-footer full"><span>🔒 Your profile is saved to your ResumeAI account.</span><button className="workspace-primary glow-action" disabled={busy}>{busy ? "Saving..." : "Save Profile →"}</button></div>
+      </form>
+      {message && <p className="module-message">{message}</p>}
+    </div>
+  </SimplePage>;
 
-  if (page === "settings") return <SimplePage title="Settings" icon="⚙️" description="Control your ResumeAI preferences and notifications."><div className="professional-module settings-card"><div className="settings-row"><div><h3>📧 Email notifications</h3><p>Receive important account and feature updates.</p></div><input type="checkbox" checked={settings.email_notifications} onChange={e=>setSettings({...settings,email_notifications:e.target.checked})}/></div><div className="settings-row"><div><h3>📊 Weekly career summary</h3><p>Receive a weekly summary of your ResumeAI activity.</p></div><input type="checkbox" checked={settings.weekly_summary} onChange={e=>setSettings({...settings,weekly_summary:e.target.checked})}/></div><div className="settings-row"><div><h3>🌐 AI response language</h3><p>Career Chat can still understand English, Hindi and Hinglish.</p></div><select value={settings.language} onChange={e=>setSettings({...settings,language:e.target.value})}><option>English</option><option>Hindi</option><option>Hinglish</option></select></div><button className="workspace-primary" onClick={saveSettings} disabled={busy}>{busy ? "Saving..." : "Save Settings"}</button>{message && <p className="module-message">{message}</p>}</div></SimplePage>;
+  if (page === "settings") return <SimplePage title="Settings" icon="⚙️" description="Manage your account, preferences and ResumeAI experience.">
+    <div className="professional-module settings-pro animated-module">
+      <div className="settings-pro-header"><div><span className="eyebrow">CONTROL CENTER</span><h2>Settings</h2><p>Personalize your ResumeAI workspace without losing your career data.</p></div><div className="settings-gear">⚙️</div></div>
+      <div className="settings-layout">
+        <aside className="settings-nav-card">
+          {[['👤','Account','Personal details and account information'],['🎨','Appearance','Theme and display preferences'],['🔔','Notifications','Email and weekly updates'],['📄','Resume Preferences','Resume upload and analysis'],['🤖','AI Preferences','AI assistant and suggestions'],['🔐','Security','Password and session management']].map(([icon,title,sub],i)=><div className={`settings-nav-item ${i===0?'active':''}`} key={title}><span>{icon}</span><div><strong>{title}</strong><small>{sub}</small></div></div>)}
+        </aside>
+        <section className="settings-content-card">
+          <div className="settings-account-preview"><div className="settings-avatar">{(currentUser?.name || profile.name || "U").slice(0,1).toUpperCase()}</div><div><strong>{currentUser?.name || profile.name || "ResumeAI User"}</strong><small>{profile.email || currentUser?.email || "Account email"}</small></div><span>✓ Account active</span></div>
+          <div className="settings-section"><div className="settings-section-title"><span>📧</span><div><h3>Notifications</h3><p>Choose what ResumeAI should send you.</p></div></div>
+            <div className="settings-row-pro"><div><h3>Email notifications</h3><p>Receive important account and feature updates.</p></div><label className="toggle"><input type="checkbox" checked={settings.email_notifications} onChange={e=>setSettings({...settings,email_notifications:e.target.checked})}/><span/></label></div>
+            <div className="settings-row-pro"><div><h3>Weekly career summary</h3><p>Receive a weekly summary of your ResumeAI activity.</p></div><label className="toggle"><input type="checkbox" checked={settings.weekly_summary} onChange={e=>setSettings({...settings,weekly_summary:e.target.checked})}/><span/></label></div>
+          </div>
+          <div className="settings-section"><div className="settings-section-title"><span>🤖</span><div><h3>AI preferences</h3><p>Set the preferred language for AI Career Chat responses.</p></div></div>
+            <div className="settings-language-row"><div><strong>AI response language</strong><small>Career Chat still understands English, Hindi and Hinglish.</small></div><select value={settings.language} onChange={e=>setSettings({...settings,language:e.target.value})}><option>English</option><option>Hindi</option><option>Hinglish</option></select></div>
+          </div>
+          <div className="settings-section settings-security-note"><div className="settings-section-title"><span>🔐</span><div><h3>Account security</h3><p>Keep your account access protected.</p></div></div><div className="security-chip">🛡️ Session protected</div></div>
+          <div className="settings-save-bar"><span>Changes are saved to your account.</span><button className="workspace-primary glow-action" onClick={saveSettings} disabled={busy}>{busy ? "Saving..." : "Save Changes →"}</button></div>
+        </section>
+      </div>
+      {message && <p className="module-message">{message}</p>}
+    </div>
+  </SimplePage>;
 
   if (page === "analytics") return <SimplePage title="Analytics" icon="📊" description="Real activity recorded in your ResumeAI account."><div className="analytics-grid-pro"><div className="analytics-card"><span>📋</span><small>Applications</small><strong>{analytics?.applications ?? "—"}</strong></div><div className="analytics-card"><span>🎤</span><small>Mock Interviews</small><strong>{analytics?.mock_interviews ?? "—"}</strong></div><div className="analytics-card"><span>🎯</span><small>Average Mock Score</small><strong>{analytics?.average_mock_score != null ? `${analytics.average_mock_score}%` : "—"}</strong></div></div>{message && <p className="module-message">{message}</p>}</SimplePage>;
 
@@ -1272,30 +1369,88 @@ function App() {
 
   function DashboardHome() {
     const analyzed = Boolean(result);
+    const bd = result?.breakdown || {};
+    const sectionScore = (key) => {
+      const raw = Number(bd[key]);
+      if (!Number.isFinite(raw)) return null;
+      return Math.max(0, Math.min(100, Math.round((raw / 15) * 100)));
+    };
+    const summaryScore = sectionScore("summary");
+    const skillsScore = sectionScore("skills");
+    const experienceScore = sectionScore("experience");
+    const educationScore = sectionScore("education");
+    const suggestionCount = Array.isArray(suggestions) ? suggestions.length : 0;
+    const strongPoints = Array.isArray(strengths) ? strengths.length : 0;
+    const matchPotential = score >= 85 ? "High" : score >= 70 ? "Medium" : "Needs work";
+    const sectionRows = [
+      ["🎯", "Overall Score", analyzed ? `${score}/100` : "—", analyzed ? "Score" : "Analyze first"],
+      ["📄", "Summary", summaryScore != null ? `${summaryScore}/100` : "—", summaryScore >= 80 ? "Good" : "Improve"],
+      ["🧩", "Skills Analysis", skillsScore != null ? `${skillsScore}/100` : "—", skillsScore >= 80 ? "Strong" : "Improve"],
+      ["💼", "Experience", experienceScore != null ? `${experienceScore}/100` : "—", experienceScore >= 80 ? "Good" : "Improve"],
+      ["🎓", "Education", educationScore != null ? `${educationScore}/100` : "—", educationScore >= 80 ? "Good" : "Improve"],
+      ["💡", "Suggestions", analyzed ? `${suggestionCount} areas` : "—", "Review"],
+    ];
+
     return (
-      <main className="workspace-page">
-        <div className="workspace-welcome">
-          <div><span className="workspace-eyebrow">RESUMEAI DASHBOARD</span><h1>Welcome back! 👋</h1><p>Your journey to a better career starts here.</p></div>
-          <button className="workspace-primary" onClick={() => setActivePage("resume")}>{analyzed ? "Analyze New Resume →" : "Analyze Resume →"}</button>
+      <main className="workspace-page dashboard-reference-page">
+        <div className="dashboard-topline">
+          <div className="dashboard-search"><span>⌕</span><input placeholder="Search anything..." aria-label="Search anything" /></div>
+          <div className="dashboard-user"><span className="dashboard-notification">♢<i /></span><span className="dashboard-user-avatar">{(currentUser?.name || "U").slice(0,1).toUpperCase()}</span><strong>{currentUser?.name || "User"}</strong><span>⌄</span></div>
         </div>
-        <div className="workspace-stats">
-          <div className="workspace-stat"><span>📄</span><div><small>Total Resumes</small><strong>{dashboardStats.total_resumes}</strong><em>{dashboardStats.total_resumes ? `${dashboardStats.total_resumes} analyzed` : "No resume yet"}</em></div></div>
-          <div className="workspace-stat"><span>🎯</span><div><small>Latest Score</small><strong>{dashboardStats.latest_score != null ? `${dashboardStats.latest_score}%` : "—"}</strong><em>{dashboardStats.latest_score != null ? getScoreInfo(dashboardStats.latest_score).label : "Analyze a resume first"}</em></div></div>
-          <div className="workspace-stat"><span>💼</span><div><small>Applications</small><strong>{dashboardStats.applications}</strong><em>{dashboardStats.applications ? "Tracked applications" : "No applications yet"}</em></div></div>
-          <div className="workspace-stat"><span>🎤</span><div><small>Mock Interviews</small><strong>{dashboardStats.mock_interviews}</strong><em>{dashboardStats.mock_interviews ? "Sessions completed" : "No interviews yet"}</em></div></div>
-        </div>
-        <div className="workspace-columns">
-          <section className="workspace-card workspace-score-card">
-            <div className="workspace-card-title"><span>Resume Analysis</span><button onClick={() => setActivePage("resume")}>Open Analyzer</button></div>
-            {analyzed ? <div className="workspace-score-body"><div className={`workspace-score-ring ${scoreInfo.className}`}><strong>{score}</strong><span>ATS score</span></div><div><h2>{scoreInfo.label}</h2><p>{result.verdict_message || scoreInfo.message}</p><button className="workspace-primary" onClick={() => setActivePage("resume")}>View Full Report →</button></div></div> : <div className="workspace-empty"><div className="workspace-empty-icon">📄</div><h2>No resume analyzed yet</h2><p>Upload a resume to get your score, AI feedback and improvement plan.</p><button className="workspace-primary" onClick={() => setActivePage("resume")}>Upload Resume →</button></div>}
+
+        <div className="dashboard-reference-grid">
+          <section className="dashboard-hero-card">
+            <div className="dashboard-crown">♛</div>
+            <div className={`dashboard-score-orbit ${analyzed ? scoreInfo.className : "empty"}`}>
+              <div className="dashboard-score-orbit-inner">
+                <strong>{analyzed ? score : "—"}</strong>
+                <span>/ 100</span>
+              </div>
+            </div>
+            <div className="dashboard-hero-emoji">{analyzed ? scoreInfo.emoji : "✨"}</div>
+            <h1>{analyzed ? (score >= 80 ? "Great Resume!" : score >= 65 ? "Good Start!" : "Let's Improve It!") : "Your Resume Journey Starts Here"}</h1>
+            <p>{analyzed ? (result.verdict_message || scoreInfo.message) : "Analyze your resume to get a clear score, practical insights and personalized next steps."}</p>
+
+            <div className="dashboard-insight-row">
+              <div><span>✓</span><small>Strong Points</small><strong>{analyzed ? strongPoints : "—"}</strong></div>
+              <div><span>💡</span><small>Areas to Improve</small><strong>{analyzed ? suggestionCount : "—"}</strong></div>
+              <div><span>★</span><small>ATS Friendly</small><strong>{analyzed ? (Number(bd.ats || 0) >= 8 ? "Yes" : "Improve") : "—"}</strong></div>
+              <div><span>🎯</span><small>Match Potential</small><strong>{analyzed ? matchPotential : "—"}</strong></div>
+            </div>
+
+            {analyzed && suggestions[0] ? (
+              <div className="dashboard-quick-tip"><span>💡</span><div><strong>Quick Tip</strong><p>{suggestions[0]}</p></div></div>
+            ) : (
+              <div className="dashboard-quick-tip"><span>💡</span><div><strong>Quick Tip</strong><p>Use measurable achievements and clear section headings when your resume supports them.</p></div></div>
+            )}
+
+            <div className="dashboard-hero-actions">
+              <button className="workspace-primary" onClick={() => setActivePage("resume")}>{analyzed ? "↻ Analyze Another" : "↑ Analyze Resume"}</button>
+              {analyzed && <button className="dashboard-outline-btn" onClick={() => setActivePage("resume")}>View Full Report →</button>}
+            </div>
           </section>
-          <section className="workspace-card"><div className="workspace-card-title"><span>Quick Actions</span></div><div className="workspace-actions"><button onClick={() => setActivePage("resume")}>⬆️ <span>Analyze Resume</span> →</button><button onClick={() => setActivePage("mocks")}>🎤 <span>Take Mock Interview</span> →</button><button onClick={() => setActivePage("jobs")}>💼 <span>Browse Jobs</span> →</button><button onClick={() => setActivePage("applications")}>📋 <span>My Applications</span> →</button></div></section>
+
+          <aside className="dashboard-side-column">
+            <section className="dashboard-side-card">
+              <div className="dashboard-side-title"><h2>Resume Analysis</h2><span>›</span></div>
+              {sectionRows.map(([icon, label, value, status]) => (
+                <button className="dashboard-analysis-row" key={label} onClick={() => setActivePage("resume")}>
+                  <span className="dashboard-row-icon">{icon}</span><span className="dashboard-row-label">{label}</span><strong className={status === "Strong" || status === "Good" ? "positive" : status === "Improve" ? "warning" : ""}>{value}</strong><em>{status}</em><span>›</span>
+                </button>
+              ))}
+            </section>
+
+            <section className="dashboard-side-card next-steps-card">
+              <div className="dashboard-side-title"><h2>Next Steps</h2><span>🚀</span></div>
+              {(suggestions.length ? suggestions.slice(0, 3) : ["Analyze a resume to generate personalized next steps.", "Review your resume score and section feedback.", "Use AI Career Advisor for career guidance."]).map((item, i) => (
+                <div className="dashboard-next-step" key={i}><span>✓</span><p>{item}</p></div>
+              ))}
+              <button className="dashboard-ai-prompt" onClick={() => setActivePage("advisor")}><span>🎯</span><div><strong>Want to improve more?</strong><small>Try AI-powered career guidance.</small></div><b>›</b></button>
+            </section>
+          </aside>
         </div>
-        <div className="workspace-columns workspace-bottom">
-          <section className="workspace-card"><div className="workspace-card-title"><span>Recent Activity</span></div>{analyzed ? <div className="workspace-activity"><div>📄 <span>Resume analyzed</span><small>Score: {score}%</small></div><div>🤖 <span>AI feedback</span><small>{aiStatus || "Available"}</small></div><div>✨ <span>Enhancement</span><small>Available in Analyzer</small></div></div> : <p className="workspace-muted">Your real activity will appear here after you use ResumeAI.</p>}</section>
-          <section className="workspace-card"><div className="workspace-card-title"><span>Resume Tips</span></div><div className="workspace-tips"><div><b>1</b><span>Use measurable achievements when your resume supports them.</span></div><div><b>2</b><span>Keep section headings clear and consistent.</span></div><div><b>3</b><span>Use relevant skills without inventing experience.</span></div><div><b>4</b><span>Keep the format clean and ATS-friendly.</span></div></div></section>
-        </div>
-        <section className="workspace-ai-banner"><div><span>🤖</span><div><h2>Let AI Build Your Future</h2><p>Get evidence-based resume feedback and career guidance.</p></div></div><button onClick={() => setActivePage("resume")}>Try ResumeAI →</button></section>
+
+        <section className="dashboard-bottom-banner"><span>✨</span><strong>Your journey to a better career is just getting started!</strong><span>Keep going! ↗</span></section>
       </main>
     );
   }
@@ -1542,192 +1697,65 @@ function App() {
             </div>
           </div>
 
-          {/* SCORE + OVERVIEW — FINAL DESIGN */}
+          {/* SCORE + OVERVIEW */}
 
-          <div className="final-score-layout">
-            <section className={`final-score-hero ${scoreInfo.className}`}>
-              <div className="final-score-topline">
-                <span className="final-score-kicker">RESUME ANALYSIS</span>
-                <span className="final-score-status">✓ Analysis Complete</span>
-              </div>
-
-              <div className="final-score-main">
-                <div
-                  className="final-score-ring"
-                  style={{ "--score": `${Math.max(0, Math.min(100, score))}%` }}
-                >
-                  <div className="final-score-ring-inner">
-                    <strong>{score}</strong>
-                    <span>/100</span>
-                    <small>Overall Score</small>
-                  </div>
-                </div>
-
-                <div className="final-score-verdict">
-                  <div className="final-score-emoji">{scoreInfo.emoji}</div>
-                  <h2>{scoreInfo.label}</h2>
-                  <p>{result.verdict_message || scoreInfo.message}</p>
-                  <div className="final-score-pill">
-                    <span>●</span> {score >= 80 ? "Good to Go" : score >= 60 ? "Needs Improvement" : "Needs Attention"}
-                  </div>
+          <div className="dashboard-grid">
+            <section className={`score-card score-card-modern ${scoreInfo.className}`}>
+              <div className="score-card-topline"><span className="score-title-icon">🎯</span><span className="score-label">RESUME HEALTH</span><span className="score-verified">✓ ANALYZED</span></div>
+              <div className="score-orbit-modern">
+                <div className="score-orbit-glow"></div>
+                <div className="score-orbit-inner">
+                  <span className="score-mini-label">OVERALL SCORE</span>
+                  <strong>{score}</strong><span className="score-out-of">/ 100</span>
                 </div>
               </div>
+              <div className="score-mood-row"><span className="score-mood-emoji">{scoreInfo.emoji}</span><div><h2>{scoreInfo.label}</h2><p>{result.verdict_message || scoreInfo.message}</p></div></div>
+              <div className="score-scale"><span>Needs work</span><div><i style={{width:`${Math.max(4,Math.min(100,score))}%`}}></i></div><span>Job ready</span></div>
+              <button type="button" className="details-button score-details-button" onClick={() => setShowScoreDetails(!showScoreDetails)}>{showScoreDetails ? "Hide Score Details ↑" : "View Score Details ↓"}</button>
+              {showScoreDetails && <div className="why-score why-score-modern"><h3>✨ Why this score?</h3>{Array.isArray(result.why_score) && result.why_score.length > 0 ? <ul>{result.why_score.map((item,index)=><li key={index}><span>{index+1}</span>{item}</li>)}</ul> : <p className="muted">Your score reflects resume structure, content quality, evidence and ATS-related factors detected in the uploaded resume.</p>}</div>}
+            </section>
 
-              <button
-                type="button"
-                className="final-details-toggle"
-                onClick={() => setShowScoreDetails(!showScoreDetails)}
-                aria-expanded={showScoreDetails}
-              >
-                <span>View Score Details</span>
-                <span>{showScoreDetails ? "↑" : "→"}</span>
-              </button>
+            <section className="overview-card">
+              <div className="card-heading">
+                <span>📋</span>
+                Resume Overview
+              </div>
 
-              {showScoreDetails && (
-                <div className="final-score-details">
-                  <div className="final-details-heading">
-                    <div>
-                      <span>📊</span>
-                      <div>
-                        <h3>How your score was calculated</h3>
-                        <p>Based on the evidence and content detected in your resume.</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="final-detail-grid">
-                    {[
-                      ["contact", "Contact Information", "👤", 10],
-                      ["summary", "Summary / Objective", "📄", 10],
-                      ["skills", "Skills", "🛠️", 10],
-                      ["education", "Education", "🎓", 8],
-                      ["experience", "Experience", "💼", 15],
-                      ["projects", "Projects", "💻", 10],
-                      ["impact", "Impact & Evidence", "📈", 10],
-                      ["ats", "ATS Readiness", "🛡️", 10],
-                    ].map(([key, label, icon, max]) => {
-                      const raw = Number(breakdown?.[key] || 0);
-                      const pct = Math.max(0, Math.min(100, Math.round((raw / max) * 100)));
-                      return (
-                        <div className="final-detail-row" key={key}>
-                          <div className="final-detail-label">
-                            <span>{icon}</span>
-                            <b>{label}</b>
-                            <em>{raw}/{max}</em>
-                          </div>
-                          <div className="final-detail-track">
-                            <span style={{ width: `${pct}%` }} />
-                          </div>
-                        </div>
+              <div className="section-status-list">
+                {SECTION_LIST.map(
+                  ([key, label]) => {
+                    const present =
+                      detectedSections.includes(
+                        key
                       );
-                    })}
-                  </div>
 
-                  {Array.isArray(result.why_score) && result.why_score.length > 0 && (
-                    <div className="final-why-score">
-                      <h4>Key reasons behind your score</h4>
-                      <ul>
-                        {result.why_score.slice(0, 5).map((item, index) => (
-                          <li key={index}><span>✓</span>{item}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              )}
-            </section>
+                    return (
+                      <div
+                        className="section-status"
+                        key={key}
+                      >
+                        <span>
+                          {label}
+                        </span>
 
-            <section className="final-section-analysis">
-              <div className="final-panel-title">
-                <div>
-                  <span>📊</span>
-                  <div>
-                    <h2>Section-wise Analysis</h2>
-                    <p>See which parts of your resume are strongest.</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="final-section-list">
-                {[
-                  ["contact", "Contact Information", "👤", 10],
-                  ["summary", "Summary / Objective", "📄", 10],
-                  ["skills", "Skills", "🛠️", 10],
-                  ["education", "Education", "🎓", 8],
-                  ["experience", "Experience", "💼", 15],
-                  ["projects", "Projects", "💻", 10],
-                  ["certifications", "Certifications", "🏅", 2],
-                ].map(([key, label, icon, max]) => {
-                  const raw = Number(breakdown?.[key] || 0);
-                  const present = detectedSections.includes(key) || raw > 0;
-                  const pct = Math.max(0, Math.min(100, Math.round((raw / max) * 100)));
-                  return (
-                    <div className="final-section-row" key={key}>
-                      <div className="final-section-name">
-                        <span>{icon}</span>
-                        <b>{label}</b>
-                        <small>{raw}/{max}</small>
+                        <span
+                          className={
+                            present
+                              ? "status-present"
+                              : "status-missing"
+                          }
+                        >
+                          {present
+                            ? "✓ Present"
+                            : "✕ Missing"}
+                        </span>
                       </div>
-                      <div className="final-section-track">
-                        <span className={pct < 60 ? "low" : ""} style={{ width: `${present ? Math.max(pct, 8) : 0}%` }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-
-            <section className="final-quick-summary">
-              <div className="final-panel-title">
-                <div>
-                  <span>💡</span>
-                  <div>
-                    <h2>Quick Summary</h2>
-                    <p>Your most important takeaways.</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="final-summary-list">
-                {(strengths.length > 0 ? strengths.slice(0, 3) : [
-                  "Resume structure has been analyzed.",
-                  "Your content has been checked for evidence.",
-                  "Use the improvement areas below to strengthen the resume.",
-                ]).map((item, index) => (
-                  <div className="final-summary-item positive" key={`s-${index}`}>
-                    <span>✓</span><p>{item}</p>
-                  </div>
-                ))}
-                {(suggestions.length > 0 ? suggestions.slice(0, 2) : []).map((item, index) => (
-                  <div className="final-summary-item warning" key={`w-${index}`}>
-                    <span>!</span><p>{item}</p>
-                  </div>
-                ))}
+                    );
+                  }
+                )}
               </div>
             </section>
           </div>
-
-          {/* RESUME OVERVIEW */}
-
-          <section className="report-card final-resume-overview">
-            <div className="card-heading">
-              <span>📋</span>
-              Resume Overview
-            </div>
-            <div className="section-status-list">
-              {SECTION_LIST.map(([key, label]) => {
-                const present = detectedSections.includes(key);
-                return (
-                  <div className="section-status" key={key}>
-                    <span>{label}</span>
-                    <span className={present ? "status-present" : "status-missing"}>
-                      {present ? "✓ Present" : "✕ Missing"}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
 
           {/* QUICK INSIGHTS */}
 
@@ -1987,7 +2015,7 @@ function App() {
                     0 && (
                     <div className="feedback-block">
                       <h3>
-                        🔴 High Priority
+                        🔥 High Priority
                       </h3>
 
                       <ul>
