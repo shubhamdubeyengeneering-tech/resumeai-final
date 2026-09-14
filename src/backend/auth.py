@@ -1,4 +1,5 @@
-import os, sqlite3, re, hashlib, uuid
+import os, sqlite3, re, hashlib, uuid, smtplib, ssl, threading
+from email.message import EmailMessage
 from datetime import datetime, timedelta, timezone
 import jwt
 from pwdlib import PasswordHash
@@ -10,6 +11,29 @@ SECRET_KEY = os.getenv('AUTH_SECRET_KEY', 'resumeai-development-secret-change-la
 ALGORITHM = 'HS256'
 TOKEN_EXPIRE_MINUTES = 60 * 24 * 7
 password_hash = PasswordHash.recommended()
+
+def _send_welcome_email(to_email: str, name: str):
+    host = os.getenv('RESUMEAI_SMTP_HOST', 'smtp.gmail.com').strip()
+    try: port = int(os.getenv('RESUMEAI_SMTP_PORT', '465'))
+    except Exception: port = 465
+    username = os.getenv('RESUMEAI_SMTP_USER', '').strip()
+    password = os.getenv('RESUMEAI_SMTP_PASSWORD', '').strip()
+    sender = os.getenv('RESUMEAI_SMTP_FROM', username).strip()
+    if not to_email or not username or not password or not sender:
+        return
+    try:
+        msg = EmailMessage()
+        msg['Subject'] = 'Welcome to ResumeAI 🤖'
+        msg['From'] = sender
+        msg['To'] = to_email
+        msg.set_content(f"Hi {name},\n\nYour ResumeAI account is ready. Your resume analyses, applications, interview practice and workspace settings are tied to this account.\n\n— ResumeAI")
+        with smtplib.SMTP_SSL(host, port, context=ssl.create_default_context(), timeout=12) as server:
+            server.login(username, password)
+            server.send_message(msg)
+    except Exception as exc:
+        print('ResumeAI welcome email error:', repr(exc))
+
+
 auth_router = APIRouter(prefix='/auth', tags=['Authentication'])
 
 def get_db():
@@ -97,6 +121,7 @@ def signup(data: SignupRequest):
                        (name, email, password_hash.hash(data.password), datetime.now(timezone.utc).isoformat()))
     user_id = cur.lastrowid; conn.commit(); conn.close()
     token = create_access_token(user_id, email)
+    threading.Thread(target=_send_welcome_email, args=(email, name), daemon=True).start()
     return {'success': True, 'message': 'Account created successfully.', 'access_token': token, 'token_type': 'bearer',
             'user': {'id': user_id, 'name': name, 'email': email}}
 
@@ -112,3 +137,7 @@ def login(data: LoginRequest):
 
 @auth_router.get('/health')
 def auth_health(): return {'success': True, 'message': 'Authentication system is working.'}
+
+@auth_router.get('/me')
+def auth_me(user=__import__('fastapi').Depends(get_current_user)):
+    return {'success': True, 'user': user}

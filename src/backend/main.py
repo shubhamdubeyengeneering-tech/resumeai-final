@@ -135,52 +135,43 @@ def clean_text(text: str) -> str:
 
 
 def extract_from_pdf(data: bytes) -> str:
-    """Extract native PDF text first, then intelligently augment with OCR.
+    """Fast, high-recall PDF extraction.
 
-    Many modern resumes are exported PDFs with text boxes, unusual fonts or
-    scanned pages. Native extraction is retained because it is usually best
-    for emails/phone numbers; OCR is added when the native layer is sparse.
+    Native PDF text is always preferred. OCR is used only for sparse/scanned
+    PDFs and is capped to the first two pages to avoid making normal analysis
+    unnecessarily slow.
     """
     doc = fitz.open(stream=data, filetype="pdf")
     try:
         native_pages = []
         for page in doc:
             try:
-                text = page.get_text("text").strip()
-                if text:
-                    native_pages.append(text)
+                value = page.get_text("text").strip()
+                if value:
+                    native_pages.append(value)
             except Exception as exc:
                 print("PDF native text error:", repr(exc))
-
         native = clean_text("\n\n".join(native_pages))
+        if len(native) >= 900:
+            return native
 
-        # OCR only when needed, so ordinary text PDFs remain fast and accurate.
-        if len(native) < 1600:
-            ocr_pages = []
-            for page in doc:
-                try:
-                    pix = page.get_pixmap(matrix=fitz.Matrix(2.6, 2.6), alpha=False)
-                    image = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-                    gray = ImageOps.grayscale(image)
-                    gray = ImageOps.autocontrast(gray)
-                    page_texts = []
-                    for config in ("--psm 6", "--psm 11"):
-                        value = pytesseract.image_to_string(gray, config=config)
-                        if value.strip():
-                            page_texts.append(value)
-                    if page_texts:
-                        # Keep both layouts; clean_text collapses duplicate whitespace.
-                        ocr_pages.append("\n".join(page_texts))
-                except Exception as exc:
-                    print("PDF OCR page error:", repr(exc))
-
-            ocr = clean_text("\n\n".join(ocr_pages))
-            if ocr:
-                # Native text first preserves high-confidence selectable text.
-                # OCR supplements missing visual text such as contact lines.
-                native = clean_text(native + "\n\n" + ocr)
-
-        return clean_text(native)
+        ocr_pages = []
+        for index, page in enumerate(doc):
+            if index >= 2:
+                break
+            try:
+                pix = page.get_pixmap(matrix=fitz.Matrix(2.0, 2.0), alpha=False)
+                image = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                gray = ImageOps.autocontrast(ImageOps.grayscale(image))
+                value = pytesseract.image_to_string(gray, config="--psm 6")
+                if not value.strip():
+                    value = pytesseract.image_to_string(gray, config="--psm 11")
+                if value.strip():
+                    ocr_pages.append(value)
+            except Exception as exc:
+                print("PDF OCR page error:", repr(exc))
+        ocr = clean_text("\n\n".join(ocr_pages))
+        return clean_text(native + ("\n\n" + ocr if ocr else ""))
     finally:
         doc.close()
 
@@ -221,52 +212,45 @@ def extract_from_docx(data: bytes) -> str:
 
 
 def extract_from_image(data: bytes) -> str:
-    """High-recall OCR for JPG/PNG resumes, with extra attention to contacts."""
+    """High-recall OCR for JPG/PNG resumes without excessive duplicate passes."""
     image = Image.open(io.BytesIO(data))
     image = ImageOps.exif_transpose(image).convert("RGB")
-
-    # Upscale small phone screenshots/photos before OCR.
-    scale = 3 if max(image.size) < 1800 else (2 if max(image.size) < 2800 else 1)
+    max_dim = max(image.size)
+    scale = 2 if max_dim < 2800 else 1
     if scale > 1:
         image = image.resize((image.width * scale, image.height * scale))
 
-    gray = ImageOps.grayscale(image)
-    enhanced = ImageOps.autocontrast(gray)
-    threshold = enhanced.point(lambda p: 255 if p > 175 else 0)
-    variants = [
-        (enhanced, "--psm 6"),
-        (enhanced, "--psm 11"),
-        (threshold, "--psm 11"),
-    ]
-
+    gray = ImageOps.autocontrast(ImageOps.grayscale(image))
     texts = []
-    for variant, config in variants:
+    for config in ("--psm 6", "--psm 11"):
         try:
-            value = pytesseract.image_to_string(variant, config=config)
+            value = pytesseract.image_to_string(gray, config=config)
             if value.strip():
                 texts.append(value)
         except Exception as exc:
             print("Image OCR error:", repr(exc))
 
-    # A contact-focused pass catches phone/email lines that a whole-page layout
-    # can miss. This is intentionally only an extraction aid; it never invents data.
-    try:
-        top = enhanced.crop((0, 0, enhanced.width, max(1, int(enhanced.height * 0.30))))
-        for config in ("--psm 6", "--psm 11"):
-            value = pytesseract.image_to_string(top, config=config)
+    merged = clean_text("\n".join(texts))
+    email_found = bool(re.search(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", merged, re.I))
+    phone_found = has_phone_number(merged)
+    if not (email_found and phone_found):
+        # Contact details are often placed in a compact header/sidebar.
+        try:
+            top = gray.crop((0, 0, gray.width, max(1, int(gray.height * 0.42))))
+            value = pytesseract.image_to_string(top, config="--psm 11")
             if value.strip():
                 texts.append(value)
-    except Exception as exc:
-        print("Contact OCR error:", repr(exc))
+        except Exception as exc:
+            print("Contact OCR error:", repr(exc))
 
-    # De-duplicate repeated OCR lines while preserving order.
-    seen = set(); merged = []
+    seen = set(); lines = []
     for block in texts:
         for line in block.splitlines():
             line = re.sub(r"\s+", " ", line).strip()
-            if line and line.lower() not in seen:
-                seen.add(line.lower()); merged.append(line)
-    return clean_text("\n".join(merged))
+            key = line.lower()
+            if line and key not in seen:
+                seen.add(key); lines.append(line)
+    return clean_text("\n".join(lines))
 
 
 async def extract_resume_text(
@@ -324,24 +308,24 @@ def has_phone_number(text: str) -> bool:
     patterns = [
         r'(?<!\d)(?:\+?91[\s().-]*)?[6-9](?:[\s().-]*\d){9}(?!\d)',
         r'(?<!\d)[6-9]\d{4}[\s.-]\d{5}(?!\d)',
-        r'(?i)(?:phone|mobile|mob|contact|tel)\s*[:#-]?\s*(?:\+?91[\s.-]*)?[6-9][0-9OIl\s().-]{8,14}',
+        r'(?i)(?:phone|mobile|mob|contact|contact\s*no|contact\s*number|tel)\s*[:#-]?\s*(?:\+?91[\s.-]*)?[6-9][0-9OIl\s().-]{8,18}',
     ]
     if any(re.search(pattern, value) for pattern in patterns):
         return True
-    # OCR frequently turns 0/1 into O/I. Only apply this correction on a
-    # contact-labelled fragment so unrelated resume numbers are not changed.
+
+    # OCR can turn digits into O/I/l and can insert spaces in a phone number.
+    # Only accept a loose 10-digit candidate when it appears on a contact-like
+    # line, which avoids treating dates/IDs elsewhere in a resume as phones.
     for line in value.splitlines():
-        if re.search(r'(?i)\b(phone|mobile|mob|contact|tel)\b', line):
-            candidate = re.sub(r'(?i)[OI]', lambda m: '0' if m.group(0).upper() == 'O' else '1', line)
+        if re.search(r'(?i)\b(phone|mobile|mob|contact|contact\s*no|contact\s*number|tel)\b', line):
+            candidate = re.sub(r'(?i)[OIl]', lambda m: {'O':'0','I':'1','l':'1'}[m.group(0)], line)
             digits = re.sub(r'\D', '', candidate)
-            if len(digits) >= 10 and any(digits[i] in '6789' for i in range(max(0, len(digits)-10), len(digits)-9)):
-                return True
+            if len(digits) >= 10:
+                tail = digits[-10:]
+                if tail[0] in '6789':
+                    return True
     return False
 
-
-# =========================================================
-# RESUME VALIDATION
-# =========================================================
 
 def looks_like_resume(text: str, filename: str = "") -> bool:
     """Conservative resume classifier designed to reduce false negatives.
@@ -422,7 +406,7 @@ def looks_like_resume(text: str, filename: str = "") -> bool:
         return True
 
     # Filename is supporting evidence, not the only reason to accept arbitrary text.
-    if explicit_resume_name and len(cleaned) >= 35 and (email or phone or linkedin or github or section_hits >= 1 or len(skills) >= 1 or professional_hits >= 1):
+    if explicit_resume_name and len(cleaned) >= 35:
         return True
 
     if explicit_resume_wording and (section_hits >= 1 or email or phone or len(skills) >= 1):

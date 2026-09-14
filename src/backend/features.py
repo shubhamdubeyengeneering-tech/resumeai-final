@@ -1,10 +1,55 @@
-import json, os, sqlite3, urllib.parse, urllib.request
+import json, os, sqlite3, urllib.parse, urllib.request, smtplib, ssl, re
+from email.message import EmailMessage
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from auth import get_current_user, get_db
 
 features_router = APIRouter(prefix='/api', tags=['ResumeAI Workspace'])
+
+
+def _send_email(to_email: str, subject: str, body: str):
+    """Send optional real email notifications when SMTP is configured.
+    Credentials are read only from environment variables; never hard-code them.
+    Gmail users can use smtp.gmail.com with a Gmail App Password.
+    """
+    host = os.getenv('RESUMEAI_SMTP_HOST', 'smtp.gmail.com').strip()
+    port = int(os.getenv('RESUMEAI_SMTP_PORT', '465'))
+    username = os.getenv('RESUMEAI_SMTP_USER', '').strip()
+    password = os.getenv('RESUMEAI_SMTP_PASSWORD', '').strip()
+    sender = os.getenv('RESUMEAI_SMTP_FROM', username).strip()
+    if not to_email or not username or not password or not sender:
+        return False
+    try:
+        msg = EmailMessage()
+        msg['Subject'] = subject
+        msg['From'] = sender
+        msg['To'] = to_email
+        msg.set_content(body)
+        with smtplib.SMTP_SSL(host, port, context=ssl.create_default_context(), timeout=12) as server:
+            server.login(username, password)
+            server.send_message(msg)
+        return True
+    except Exception as exc:
+        print('ResumeAI email notification error:', repr(exc))
+        return False
+
+
+def _email_notifications_enabled(user_id: int) -> bool:
+    conn = db()
+    row = conn.execute('SELECT email_notifications FROM settings WHERE user_id=?', (user_id,)).fetchone()
+    conn.close()
+    return bool(row['email_notifications']) if row else True
+
+
+def _notify_user(user_id: int, subject: str, body: str):
+    if not _email_notifications_enabled(user_id):
+        return
+    conn = db()
+    row = conn.execute('SELECT email FROM users WHERE id=?', (user_id,)).fetchone()
+    conn.close()
+    if row and row['email'] and '@' in row['email']:
+        _send_email(row['email'], subject, body)
 
 
 def init_feature_db():
@@ -23,6 +68,9 @@ def init_feature_db():
         conn.execute("ALTER TABLE settings ADD COLUMN voice_enabled INTEGER DEFAULT 1")
     if 'voice_gender' not in cols:
         conn.execute("ALTER TABLE settings ADD COLUMN voice_gender TEXT DEFAULT 'female'")
+    mock_cols = {r[1] for r in conn.execute('PRAGMA table_info(mock_interview_sessions)').fetchall()}
+    if 'cancelled' not in mock_cols:
+        conn.execute("ALTER TABLE mock_interview_sessions ADD COLUMN cancelled INTEGER DEFAULT 0")
     conn.commit(); conn.close()
 
 
@@ -140,6 +188,7 @@ def add_application(data: ApplicationCreate, user=Depends(get_current_user)):
     conn = db(); cur = conn.execute('INSERT INTO applications(user_id,company,role,location,url,status,notes,applied_at) VALUES(?,?,?,?,?,?,?,?)',
                                      (user['id'], data.company.strip(), data.role.strip(), data.location.strip(), data.url.strip(), data.status.strip(), data.notes.strip(), now()))
     conn.commit(); row = conn.execute('SELECT * FROM applications WHERE id=?', (cur.lastrowid,)).fetchone(); conn.close()
+    _notify_user(user['id'], 'ResumeAI — application added', f"Your application for {data.role.strip()} at {data.company.strip()} was saved to your ResumeAI workspace.\n\nStatus: {data.status.strip()}\nLocation: {data.location.strip() or 'Not specified'}")
     return {'success': True, 'application': dict(row)}
 
 
@@ -250,11 +299,50 @@ def _resume_context(resume_job_id: str):
         return ''
 
 
-def _fallback_evaluation(answer: str, question_number: int):
-    words = len(answer.split())
-    score = max(35, min(92, 42 + min(words, 80) // 2 + (10 if any(k in answer.lower() for k in ['because', 'result', 'impact', 'built', 'learned', 'example']) else 0)))
+def _answer_quality(answer: str, question: str = ''):
+    text = re.sub(r'\s+', ' ', (answer or '').strip())
+    words = re.findall(r"[A-Za-z]+(?:'[A-Za-z]+)?", text.lower())
+    if not words:
+        return 0, 'The answer is empty or contains no readable words.'
+    compact = re.sub(r'[^a-z0-9]+', '', text.lower())
+    unique_ratio = len(set(words)) / max(1, len(words))
+    alpha_ratio = sum(ch.isalpha() for ch in text) / max(1, len(text))
+    repeated = bool(re.search(r'(.)\1{4,}', compact))
+    filler = {'asdf', 'qwerty', 'test', 'hello', 'hi', 'abc', 'xyz', 'bahifi', 'blah', 'none', 'nothing'}
+    if len(words) <= 2:
+        return 8, 'The answer is too short to evaluate meaningfully.'
+    if compact in filler or (len(words) <= 4 and unique_ratio < 0.65):
+        return 6, 'The answer does not provide enough meaningful content.'
+    if repeated or alpha_ratio < 0.45 or (any(ch.isdigit() for ch in text) and len(words) <= 2):
+        return 5, 'The answer appears to contain mostly noise rather than an interview response.'
+    if len(words) < 6:
+        return 25, 'The answer has some content, but it needs more explanation or a concrete example.'
+
+    q_words = set(re.findall(r"[a-z]{4,}", (question or '').lower())) - {
+        'what','when','where','which','would','could','should','have','your','this','that','about','from','with','tell','walk','describe','explain'}
+    overlap = len(q_words & set(words))
+    relevance = 0 if not q_words else min(1.0, overlap / max(2, min(5, len(q_words))))
+    score = 48
+    score += min(20, len(words) * 0.8)
+    score += int(unique_ratio * 10)
+    score += int(alpha_ratio * 5)
+    if relevance >= 0.5:
+        score += 12
+    elif relevance == 0 and len(words) < 15:
+        score -= 15
+    if any(k in words for k in ['example','because','result','impact','built','implemented','solved','learned','improved','measured','achieved']):
+        score += 8
+    return max(20, min(92, int(score))), ''
+
+
+def _fallback_evaluation(answer: str, question_number: int, question: str = ''):
+    score, gate_message = _answer_quality(answer, question)
+    if score <= 10:
+        return {'score': score, 'feedback': gate_message, 'strengths': 'The response was submitted, but it did not contain enough meaningful interview content.', 'improvement': 'Answer the question directly using your own words and include a real example when possible.'}
+    if score <= 30:
+        return {'score': score, 'feedback': gate_message or 'The response needs more relevant detail.', 'strengths': 'You attempted the question.', 'improvement': 'Explain what you did, why you did it, and what the result was.'}
     feedback = 'Add a concrete example, your specific action, and the real result if you can support it.' if score < 72 else 'Good structure. Keep the answer specific, evidence-based, and concise.'
-    return {'score': score, 'feedback': feedback, 'strengths': 'Clear effort and relevant explanation.', 'improvement': 'Use a specific situation, action, and result where applicable.'}
+    return {'score': score, 'feedback': feedback, 'strengths': 'The response contains meaningful content.', 'improvement': 'Use a specific situation, action, and result where applicable.'}
 
 
 @features_router.post('/mocks/start')
@@ -285,7 +373,7 @@ def answer_mock(session_id: int, data: MockAnswer, user=Depends(get_current_user
     conn = db(); session = conn.execute('SELECT * FROM mock_interview_sessions WHERE id=? AND user_id=?', (session_id, user['id'])).fetchone()
     if not session:
         conn.close(); raise HTTPException(404, 'Mock interview session not found.')
-    if session['completed']:
+    if session['completed'] or session['cancelled']:
         conn.close(); return {'success': True, 'final': True, 'score': session['final_score'], 'feedback': session['final_feedback'], 'question_number': 10, 'total_questions': 10}
     turn = conn.execute('SELECT * FROM mock_interview_turns WHERE session_id=? AND question_number=?', (session_id, session['current_question'])).fetchone()
     if not turn:
@@ -304,11 +392,25 @@ Then create the next question only if this is not question 10. The next question
 Return JSON only with fields: score (integer 0-100), feedback (string), strengths (string), improvement (string), next_question (string or empty), final_summary (string or empty), final_score (number or null).
 For question 10, next_question must be empty and final_summary/final_score must be filled.
 RESUME:\n{resume_text}\n\nPREVIOUS ANSWERS:\n{history}\n\nCURRENT QUESTION:\n{turn['question']}\n\nCURRENT ANSWER:\n{answer}'''
-    ai = _mock_ai(prompt) or _fallback_evaluation(answer, qnum)
-    score = int(max(0, min(100, float(ai.get('score', 0)))))
-    feedback = str(ai.get('feedback') or 'Review the answer and make your reasoning more specific.')
-    strengths = str(ai.get('strengths') or '')
-    improvement = str(ai.get('improvement') or '')
+    ai = _mock_ai(prompt) or _fallback_evaluation(answer, qnum, turn['question'])
+    ai_score = int(max(0, min(100, float(ai.get('score', 0)))))
+    quality_score, quality_message = _answer_quality(answer, turn['question'])
+    # A model must never rescue meaningless input with a high score.
+    if quality_score <= 10:
+        score = quality_score
+        feedback = quality_message
+        strengths = 'The response was submitted, but it did not contain enough meaningful interview content.'
+        improvement = 'Answer the question directly using your own words and include a real example when possible.'
+    elif quality_score <= 30:
+        score = min(ai_score, 35)
+        feedback = quality_message or str(ai.get('feedback') or 'The response needs more relevant detail.')
+        strengths = str(ai.get('strengths') or 'You attempted the question.')
+        improvement = str(ai.get('improvement') or 'Explain what you did, why you did it, and what the result was.')
+    else:
+        score = min(ai_score, max(quality_score + 15, 0))
+        feedback = str(ai.get('feedback') or 'Review the answer and make your reasoning more specific.')
+        strengths = str(ai.get('strengths') or '')
+        improvement = str(ai.get('improvement') or '')
     conn.execute('UPDATE mock_interview_turns SET answer=?,score=?,feedback=?,strengths=?,improvement=? WHERE id=?', (answer, score, feedback, strengths, improvement, turn['id']))
 
     if qnum >= 10:
@@ -317,6 +419,7 @@ RESUME:\n{resume_text}\n\nPREVIOUS ANSWERS:\n{history}\n\nCURRENT QUESTION:\n{tu
         final_feedback = str(ai.get('final_summary') or 'Interview complete. Review the feedback from each answer and practice the areas that need improvement.')
         conn.execute('UPDATE mock_interview_sessions SET completed=1,final_score=?,final_feedback=? WHERE id=?', (final_score, final_feedback, session_id))
         conn.commit(); conn.close()
+        _notify_user(user['id'], 'ResumeAI — mock interview complete', f'Your 10-question AI mock interview for {session["role"]} is complete. Final score: {final_score}/100.')
         return {'success': True, 'score': score, 'feedback': feedback, 'strengths': strengths, 'improvement': improvement, 'final': True, 'final_score': final_score, 'final_feedback': final_feedback, 'question_number': 10, 'total_questions': 10}
 
     next_question = str(ai.get('next_question') or '').strip()
@@ -327,6 +430,17 @@ RESUME:\n{resume_text}\n\nPREVIOUS ANSWERS:\n{history}\n\nCURRENT QUESTION:\n{tu
     conn.execute('INSERT INTO mock_interview_turns(session_id,question_number,question,created_at) VALUES(?,?,?,?)', (session_id, next_num, next_question, now()))
     conn.commit(); conn.close()
     return {'success': True, 'score': score, 'feedback': feedback, 'strengths': strengths, 'improvement': improvement, 'final': False, 'next_question': next_question, 'question_number': qnum, 'next_question_number': next_num, 'total_questions': 10}
+
+
+@features_router.post('/mocks/{session_id}/cancel')
+def cancel_mock(session_id: int, user=Depends(get_current_user)):
+    conn = db()
+    session = conn.execute('SELECT * FROM mock_interview_sessions WHERE id=? AND user_id=?', (session_id, user['id'])).fetchone()
+    if not session:
+        conn.close(); raise HTTPException(404, 'Mock interview session not found.')
+    conn.execute('UPDATE mock_interview_sessions SET cancelled=1 WHERE id=? AND user_id=?', (session_id, user['id']))
+    conn.commit(); conn.close()
+    return {'success': True, 'message': 'Mock interview ended. Your completed answers remain saved.'}
 
 
 @features_router.get('/mocks')
@@ -356,6 +470,29 @@ def jobs(search: str = '', limit: int = 12, user=Depends(get_current_user)):
         return {'success': True, 'jobs': out, 'source': 'Remotive'}
     except Exception as exc:
         raise HTTPException(502, f'Live jobs service is temporarily unavailable: {exc}')
+
+
+@features_router.get('/dashboard')
+def dashboard(user=Depends(get_current_user)):
+    conn = db()
+    total = conn.execute('SELECT COUNT(*) c FROM resume_analyses WHERE user_id=?', (user['id'],)).fetchone()['c']
+    latest = conn.execute('SELECT score, filename, created_at FROM resume_analyses WHERE user_id=? ORDER BY id DESC LIMIT 1', (user['id'],)).fetchone()
+    mocks = conn.execute('SELECT COUNT(*) c, AVG(final_score) avg FROM mock_interview_sessions WHERE user_id=? AND completed=1 AND cancelled=0', (user['id'],)).fetchone()
+    apps = conn.execute('SELECT COUNT(*) c FROM applications WHERE user_id=?', (user['id'],)).fetchone()['c']
+    conn.close()
+    return {'success': True, 'dashboard': {'total_resumes': total, 'latest_score': latest['score'] if latest else None, 'latest_filename': latest['filename'] if latest else None, 'latest_analyzed_at': latest['created_at'] if latest else None, 'mock_interviews': mocks['c'] or 0, 'applications': apps, 'average_mock_score': round(mocks['avg'], 1) if mocks['avg'] is not None else None}}
+
+
+@features_router.get('/resume-history')
+def resume_history(user=Depends(get_current_user)):
+    conn = db()
+    rows = conn.execute('SELECT id,filename,score,created_at,analysis_json FROM resume_analyses WHERE user_id=? ORDER BY id DESC LIMIT 50', (user['id'],)).fetchall()
+    conn.close()
+    out=[]
+    for row in rows:
+        item=dict(row); item['analysis']=json.loads(item.pop('analysis_json'))
+        out.append(item)
+    return {'success': True, 'history': out}
 
 
 @features_router.get('/analytics')
