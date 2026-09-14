@@ -256,13 +256,97 @@ QUESTION_BANK = {
 }
 
 
-def question_bank_for(role: str):
+QUESTION_BANK_LOCALIZED = {
+    'English': QUESTION_BANK,
+    'Hindi': {
+        'software': [
+            'Apne resume ke kisi ek project ko detail mein samjhaiye. Aapne kaunsi problem solve ki aur khud kya banaya?',
+            'Agar koi feature local system par chale lekin production mein fail ho, to aap problem kaise investigate karenge?',
+            'Kisi technical decision ke baare mein batayiye jo aapne liya aur usmein kaun-sa trade-off socha?',
+            'Release se pehle aap kisi feature ko kaise test karenge?',
+            'Aisa samay batayiye jab aapne performance, reliability ya user experience improve kiya ho.',
+            'Kisi non-technical teammate ko technical concept kaise samjhayenge?',
+            'Kisi bug ya galti ke baare mein batayiye aur usse aapne kya seekha.',
+            'Jab kai tasks urgent hon, to aap pehle kaunsa task karenge aur kyun?',
+            'Is role ke liye aap apni kaunsi skill ko sabse zyada improve karna chahenge?',
+            'Aapke genuine experience ke basis par team ko aapko kyun choose karna chahiye?'
+        ],
+        'data': [
+            'Apne resume ke kisi analysis ya data project ko samjhaiye. Aap kis sawal ka jawab dhoondh rahe the?',
+            'Missing, inconsistent ya duplicate data ko aap kaise handle karenge?',
+            'Kisi feature ki success measure karne ke liye aap kaunsa metric choose karenge aur kyun?',
+            'Unexpected result ko stakeholder ko aap kaise samjhayenge?',
+            'Aisa samay batayiye jab aapke analysis ne kisi decision ya recommendation ko badla ho.',
+            'Aap kaise validate karenge ki aapka analysis misleading nahi hai?',
+            'Agar do data sources alag results dein to aap kya karenge?',
+            'Apne findings mein uncertainty ko aap kaise communicate karenge?',
+            'Is role ke liye aap kaunsi analytical skill sabse zyada strengthen karna chahenge?',
+            'Sirf apne demonstrated experience ke basis par aap is role ke liye achhe fit kyun hain?'
+        ],
+        'default': [
+            'Apne baare mein batayiye aur aap kis career direction mein jana chahte hain?',
+            'Apne resume ke kisi project ya experience ko choose karke apna contribution samjhaiye.',
+            'Kisi challenging problem ke baare mein batayiye aur aapne use kaise solve kiya.',
+            'Aap koi nayi skill kaise seekhte hain?',
+            'Team ya kisi doosre person ke saath kaam karne ka koi important example batayiye.',
+            'Kis achievement par aapko sabse zyada garv hai aur kyun?',
+            'Kisi mistake ya setback ke baare mein batayiye aur aapne kya seekha.',
+            'Multiple deadlines hone par aap priorities kaise decide karte hain?',
+            'Kaunsi skill improve karne se aapke career par sabse bada positive impact padega?',
+            'Apne real experience ke evidence ke basis par aap strong candidate kyun hain?'
+        ]
+    },
+    'Hinglish': {
+        'software': [
+            'Apne resume ka koi ek project walk me through karo. Kaunsi problem solve ki aur tumne personally kya build kiya?',
+            'Agar feature local par work kare but production mein fail ho jaye, to tum investigate kaise karoge?',
+            'Kisi technical decision ke baare mein batao jo tumne liya aur usmein kya trade-off consider kiya?',
+            'Kisi feature ko release karne se pehle tum testing kaise karoge?',
+            'Aisa example batao jahan tumne performance, reliability ya user experience improve kiya.',
+            'Kisi non-technical teammate ko technical concept simple way mein kaise explain karoge?',
+            'Kisi bug ya mistake ka example batao aur usse kya learn kiya?',
+            'Jab multiple tasks urgent hon, to tum priority kaise decide karoge?',
+            'Is role ke liye tum apni kaunsi skill sabse zyada improve karna chahte ho?',
+            'Tumhare genuine experience ke basis par team ko tumhe kyun choose karna chahiye?'
+        ],
+        'data': [
+            'Apne resume ke kisi analysis ya data project ko walk me through karo. Tum kis question ka answer find kar rahe the?',
+            'Missing, inconsistent ya duplicate data ko tum kaise handle karoge?',
+            'Kisi feature ki success measure karne ke liye tum kaunsa metric choose karoge aur kyun?',
+            'Unexpected result ko stakeholder ko tum kaise explain karoge?',
+            'Aisa time batao jab tumhare analysis ne kisi decision ya recommendation ko change kiya.',
+            'Tum kaise validate karoge ki analysis misleading nahi hai?',
+            'Agar do data sources ke results disagree karein to tum kya karoge?',
+            'Apne findings ki uncertainty ko tum kaise communicate karoge?',
+            'Is role ke liye tum kaunsi analytical skill strengthen karna chahte ho?',
+            'Sirf apne demonstrated experience ke basis par tum is role ke liye good fit kyun ho?'
+        ],
+        'default': [
+            'Apne baare mein batao aur abhi tum kis career direction mein jaana chahte ho?',
+            'Resume se koi ek project ya experience choose karo aur apna contribution explain karo.',
+            'Kisi challenging problem ka example batao aur tumne use kaise approach kiya?',
+            'Koi new skill seekhne ke liye tum usually kya approach follow karte ho?',
+            'Kisi person ya team ke saath important kaam complete karne ka example batao.',
+            'Kis achievement par tumhe sabse zyada proud feel hota hai aur kyun?',
+            'Kisi mistake ya setback ka example batao aur usse kya learn kiya?',
+            'Jab multiple deadlines hon, to tum priorities kaise set karte ho?',
+            'Kaunsi skill improve karne se tumhare career mein sabse bada difference aa sakta hai?',
+            'Apne real experience ke evidence ke basis par tum strong candidate kyun ho?'
+        ]
+    }
+}
+
+
+def question_bank_for(role: str, language: str = 'English'):
     r = role.lower()
     if any(x in r for x in ['software', 'developer', 'frontend', 'backend', 'full stack', 'engineer', 'web']):
-        return QUESTION_BANK['software']
-    if any(x in r for x in ['data', 'analyst', 'analytics']):
-        return QUESTION_BANK['data']
-    return QUESTION_BANK['default']
+        key = 'software'
+    elif any(x in r for x in ['data', 'analyst', 'analytics']):
+        key = 'data'
+    else:
+        key = 'default'
+    bank = QUESTION_BANK_LOCALIZED.get(language, QUESTION_BANK_LOCALIZED['English'])
+    return bank[key]
 
 
 def _mock_ai(prompt: str):
@@ -301,60 +385,93 @@ def _resume_context(resume_job_id: str):
 
 def _answer_quality(answer: str, question: str = ''):
     text = re.sub(r'\s+', ' ', (answer or '').strip())
-    words = re.findall(r"[A-Za-z]+(?:'[A-Za-z]+)?", text.lower())
+    # Support English, Hindi/Devanagari and Hinglish instead of silently
+    # treating non-Latin answers as empty/meaningless.
+    words = re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿ]+(?:['’][A-Za-zÀ-ÖØ-öø-ÿ]+)?|[\u0900-\u097F]+", text.lower())
     if not words:
-        return 0, 'The answer is empty or contains no readable words.'
-    compact = re.sub(r'[^a-z0-9]+', '', text.lower())
+        return 0, 'The answer is empty or contains no readable words.', 0
+
+    compact = re.sub(r'[^\w\u0900-\u097F]+', '', text.lower(), flags=re.UNICODE)
     unique_ratio = len(set(words)) / max(1, len(words))
     alpha_ratio = sum(ch.isalpha() for ch in text) / max(1, len(text))
     repeated = bool(re.search(r'(.)\1{4,}', compact))
-    filler = {'asdf', 'qwerty', 'test', 'hello', 'hi', 'abc', 'xyz', 'bahifi', 'blah', 'none', 'nothing'}
-    if len(words) <= 2:
-        return 8, 'The answer is too short to evaluate meaningfully.'
-    if compact in filler or (len(words) <= 4 and unique_ratio < 0.65):
-        return 6, 'The answer does not provide enough meaningful content.'
-    if repeated or alpha_ratio < 0.45 or (any(ch.isdigit() for ch in text) and len(words) <= 2):
-        return 5, 'The answer appears to contain mostly noise rather than an interview response.'
-    if len(words) < 6:
-        return 25, 'The answer has some content, but it needs more explanation or a concrete example.'
+    filler = {'asdf', 'qwerty', 'test', 'hello', 'hi', 'abc', 'xyz', 'bahifi', 'blah', 'none', 'nothing', 'ok', 'okay'}
 
-    q_words = set(re.findall(r"[a-z]{4,}", (question or '').lower())) - {
-        'what','when','where','which','would','could','should','have','your','this','that','about','from','with','tell','walk','describe','explain'}
-    overlap = len(q_words & set(words))
-    relevance = 0 if not q_words else min(1.0, overlap / max(2, min(5, len(q_words))))
-    score = 48
-    score += min(20, len(words) * 0.8)
+    if len(words) <= 2:
+        return 8, 'The answer is too short to evaluate meaningfully.', 0
+    if compact in filler or (len(words) <= 4 and unique_ratio < 0.65):
+        return 6, 'The answer does not provide enough meaningful content.', 0
+    if repeated or alpha_ratio < 0.45 or (any(ch.isdigit() for ch in text) and len(words) <= 2):
+        return 5, 'The answer appears to contain mostly noise rather than an interview response.', 0
+    if len(words) < 6:
+        return 25, 'The answer has some content, but it needs more explanation or a concrete example.', 35
+
+    # Lexical relevance is a safety net for when the AI evaluator is unavailable.
+    # Keep common conversational/question words out so generic interview prompts
+    # such as "tell me about yourself" are not unfairly penalized.
+    q_tokens = re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿ]+|[\u0900-\u097F]+", (question or '').lower())
+    stop = {
+        'what','when','where','which','would','could','should','have','your','this','that','about','from','with','tell','walk','describe','explain',
+        'how','why','can','you','are','the','and','for','was','were','did','does','do','is','in','of','to','a','an','me','my','please','give','share',
+        'kya','kab','kahan','kaise','kyun','aap','apna','apne','apni','batao','bataye','bataiye','hai','hain','aur','ke','ki','ka','ko','mein','se','par','ek','mujhe','tum','tumhara','aapka'
+    }
+    q_words = {w for w in q_tokens if len(w) >= 3 and w not in stop}
+    a_words = set(words)
+    overlap = len(q_words & a_words)
+    relevance = 0.55 if not q_words else min(1.0, overlap / max(1, min(4, len(q_words))))
+
+    # Generic prompts need content, not literal keyword overlap.
+    generic = bool(re.search(r'\b(tell me about yourself|introduce yourself|yourself|strengths?|weaknesses?|career goals?|why should we hire you|why do you want|अपने बारे|अपना परिचय|आपके बारे|ताकत|कमजोरी|करियर लक्ष्य)\b', question or '', re.I))
+    if generic and len(words) >= 10:
+        relevance = max(relevance, 0.65)
+
+    score = 40
+    score += min(22, len(words) * 0.75)
     score += int(unique_ratio * 10)
     score += int(alpha_ratio * 5)
     if relevance >= 0.5:
-        score += 12
-    elif relevance == 0 and len(words) < 15:
-        score -= 15
-    if any(k in words for k in ['example','because','result','impact','built','implemented','solved','learned','improved','measured','achieved']):
+        score += 14
+    elif relevance < 0.25:
+        score -= 28
+    elif relevance < 0.5:
+        score -= 10
+    if any(k in a_words for k in ['example','because','result','impact','built','implemented','solved','learned','improved','measured','achieved','उदाहरण','क्योंकि','नतीजा','सीखा','सुधारा']):
         score += 8
-    return max(20, min(92, int(score))), ''
 
+    return max(12, min(92, int(score))), '', int(relevance * 100)
 
 def _fallback_evaluation(answer: str, question_number: int, question: str = ''):
-    score, gate_message = _answer_quality(answer, question)
+    score, gate_message, relevance = _answer_quality(answer, question)
     if score <= 10:
         return {'score': score, 'feedback': gate_message, 'strengths': 'The response was submitted, but it did not contain enough meaningful interview content.', 'improvement': 'Answer the question directly using your own words and include a real example when possible.'}
     if score <= 30:
         return {'score': score, 'feedback': gate_message or 'The response needs more relevant detail.', 'strengths': 'You attempted the question.', 'improvement': 'Explain what you did, why you did it, and what the result was.'}
     feedback = 'Add a concrete example, your specific action, and the real result if you can support it.' if score < 72 else 'Good structure. Keep the answer specific, evidence-based, and concise.'
-    return {'score': score, 'feedback': feedback, 'strengths': 'The response contains meaningful content.', 'improvement': 'Use a specific situation, action, and result where applicable.'}
+    if relevance < 25:
+        score = min(score, 30)
+        feedback = 'The response does not appear to answer the question. Stay focused on what was asked.'
+        improvement = 'Answer the exact question first, then add one relevant example or result.'
+    elif relevance < 50:
+        score = min(score, 48)
+        feedback = 'The answer has some content, but the connection to the question is weak.'
+        improvement = 'Directly address the key part of the question before adding extra details.'
+    return {'score': score, 'feedback': feedback, 'strengths': 'The response contains meaningful content.', 'improvement': improvement}
 
 
 @features_router.post('/mocks/start')
 def start_mock(data: MockStart, user=Depends(get_current_user)):
     language = data.language if data.language in {'English', 'Hindi', 'Hinglish'} else 'English'
-    questions = question_bank_for(data.role)
+    questions = question_bank_for(data.role, language)
     resume_text = _resume_context(data.resume_job_id)
     prompt = f'''You are ResumeAI's AI interviewer. Start a 10-question adaptive mock interview.
 Role: {data.role.strip()}
 Language: {language}
 Ask exactly one first question. Use the resume as evidence when available. Do not invent experience.
-If the resume is missing, ask a role-relevant question that lets the candidate explain real experience.
+IMPORTANT LANGUAGE RULE: Write the question entirely in the selected interview language:
+- English = natural professional English.
+- Hindi = natural Hindi in Devanagari script; do not leave the question in English.
+- Hinglish = natural Roman-script Hinglish (Hindi + English mixed naturally); do not use Devanagari.
+Every user-visible interview question and feedback must follow this selected language.
 Return JSON only: {{"question":"..."}}.
 RESUME:\n{resume_text}'''
     ai = _mock_ai(prompt)
@@ -388,19 +505,40 @@ Role: {session['role']}
 Language: {session['language']}
 This is question {qnum} of exactly 10.
 Evaluate the candidate's answer fairly. Use only the answer and resume evidence. Never invent facts.
+IMPORTANT LANGUAGE RULE: Write ALL user-visible question, feedback, strengths, improvement and final summary text entirely in the session's selected language:
+- English = natural professional English.
+- Hindi = natural Hindi in Devanagari script; do not use English sentences.
+- Hinglish = natural Roman-script Hinglish; mix Hindi and English naturally, but do not use Devanagari.
 Then create the next question only if this is not question 10. The next question should adapt to the candidate's answer and resume.
-Return JSON only with fields: score (integer 0-100), feedback (string), strengths (string), improvement (string), next_question (string or empty), final_summary (string or empty), final_score (number or null).
+Return JSON only with fields: score (integer 0-100), relevance_score (integer 0-100), feedback (string), strengths (string), improvement (string), next_question (string or empty), final_summary (string or empty), final_score (number or null).
+SCORING RULE: Relevance is mandatory. If the answer does not actually address the current question, set relevance_score below 25 and score no higher than 20. If relevance is weak (25-49), score no higher than 45. Do not award a high score merely because the answer is long, fluent, or grammatically correct. Evaluate both typed and spoken answers by their actual transcribed content.
 For question 10, next_question must be empty and final_summary/final_score must be filled.
 RESUME:\n{resume_text}\n\nPREVIOUS ANSWERS:\n{history}\n\nCURRENT QUESTION:\n{turn['question']}\n\nCURRENT ANSWER:\n{answer}'''
     ai = _mock_ai(prompt) or _fallback_evaluation(answer, qnum, turn['question'])
     ai_score = int(max(0, min(100, float(ai.get('score', 0)))))
-    quality_score, quality_message = _answer_quality(answer, turn['question'])
-    # A model must never rescue meaningless input with a high score.
+    quality_score, quality_message, lexical_relevance = _answer_quality(answer, turn['question'])
+    try:
+        ai_relevance = int(max(0, min(100, float(ai.get('relevance_score', lexical_relevance)))))
+    except Exception:
+        ai_relevance = lexical_relevance
+    # A model must never rescue an unrelated/meaningless answer with a high score.
+    # Use the stricter of AI relevance and the local relevance gate.
+    relevance = min(ai_relevance, lexical_relevance) if lexical_relevance > 0 else ai_relevance
     if quality_score <= 10:
         score = quality_score
         feedback = quality_message
         strengths = 'The response was submitted, but it did not contain enough meaningful interview content.'
         improvement = 'Answer the question directly using your own words and include a real example when possible.'
+    elif relevance < 25:
+        score = min(ai_score, 20)
+        feedback = 'The response does not answer the current question closely enough.'
+        strengths = 'You submitted a response, but it needs to stay focused on the interviewer’s question.'
+        improvement = 'Answer the exact question first and remove unrelated information.'
+    elif relevance < 50:
+        score = min(ai_score, 45)
+        feedback = str(ai.get('feedback') or 'The answer has some relevant content, but the connection to the question is weak.')
+        strengths = str(ai.get('strengths') or 'You attempted the question.')
+        improvement = str(ai.get('improvement') or 'Directly address the key part of the question before adding extra details.')
     elif quality_score <= 30:
         score = min(ai_score, 35)
         feedback = quality_message or str(ai.get('feedback') or 'The response needs more relevant detail.')
@@ -424,7 +562,7 @@ RESUME:\n{resume_text}\n\nPREVIOUS ANSWERS:\n{history}\n\nCURRENT QUESTION:\n{tu
 
     next_question = str(ai.get('next_question') or '').strip()
     if not next_question:
-        bank = question_bank_for(session['role']); next_question = bank[min(qnum, len(bank) - 1)]
+        bank = question_bank_for(session['role'], session['language']); next_question = bank[min(qnum, len(bank) - 1)]
     next_num = qnum + 1
     conn.execute('UPDATE mock_interview_sessions SET current_question=? WHERE id=?', (next_num, session_id))
     conn.execute('INSERT INTO mock_interview_turns(session_id,question_number,question,created_at) VALUES(?,?,?,?)', (session_id, next_num, next_question, now()))
