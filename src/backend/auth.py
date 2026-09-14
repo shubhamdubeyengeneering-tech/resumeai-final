@@ -37,8 +37,18 @@ def _send_welcome_email(to_email: str, name: str):
 auth_router = APIRouter(prefix='/auth', tags=['Authentication'])
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
+    # Render can receive several requests at the same time. SQLite allows only
+    # one writer, so wait for an active writer instead of failing immediately.
+    conn = sqlite3.connect(DB_PATH, timeout=30, check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA busy_timeout=30000")
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+    except sqlite3.OperationalError:
+        # Another process may be changing the journal mode at startup. The
+        # busy_timeout above is still enough to wait for the lock.
+        pass
+    conn.execute("PRAGMA synchronous=NORMAL")
     return conn
 
 def init_db():
@@ -95,12 +105,14 @@ def get_current_user(
             conn = get_db()
             row = conn.execute('SELECT id, name, email, created_at FROM users WHERE email=?', (guest_email,)).fetchone()
             if not row:
-                cur = conn.execute(
-                    'INSERT INTO users(name,email,password_hash,created_at) VALUES(?,?,?,?)',
+                # INSERT OR IGNORE also protects against two simultaneous
+                # guest requests creating the same guest record.
+                conn.execute(
+                    'INSERT OR IGNORE INTO users(name,email,password_hash,created_at) VALUES(?,?,?,?)',
                     ('Guest User', guest_email, password_hash.hash(uuid.uuid4().hex), datetime.now(timezone.utc).isoformat()),
                 )
                 conn.commit()
-                row = conn.execute('SELECT id, name, email, created_at FROM users WHERE id=?', (cur.lastrowid,)).fetchone()
+                row = conn.execute('SELECT id, name, email, created_at FROM users WHERE email=?', (guest_email,)).fetchone()
             conn.close()
             user = dict(row)
             user['email'] = ''

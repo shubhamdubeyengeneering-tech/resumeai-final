@@ -3607,18 +3607,20 @@ async def analyze_resume(
         )
 
         conn = get_db()
-        conn.execute(
-            "INSERT INTO resume_analyses(user_id, filename, score, analysis_json, created_at) VALUES(?,?,?,?,?)",
-            (
-                user['id'],
-                filename,
-                int(analysis.get('score', 0)),
-                json.dumps(analysis, ensure_ascii=False),
-                __import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat(),
-            ),
-        )
-        conn.commit()
-        conn.close()
+        try:
+            conn.execute(
+                "INSERT INTO resume_analyses(user_id, filename, score, analysis_json, created_at) VALUES(?,?,?,?,?)",
+                (
+                    user['id'],
+                    filename,
+                    int(analysis.get('score', 0)),
+                    json.dumps(analysis, ensure_ascii=False),
+                    __import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat(),
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
 
         job_id = str(
             uuid.uuid4()
