@@ -14,8 +14,12 @@ from dotenv import load_dotenv
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from google import genai
-from google.genai import types
+try:
+    from google import genai
+    from google.genai import types
+except Exception:
+    genai = None
+    types = None
 
 
 
@@ -131,51 +135,52 @@ def clean_text(text: str) -> str:
 
 
 def extract_from_pdf(data: bytes) -> str:
-    doc = fitz.open(
-        stream=data,
-        filetype="pdf",
-    )
+    """Extract native PDF text first, then intelligently augment with OCR.
 
+    Many modern resumes are exported PDFs with text boxes, unusual fonts or
+    scanned pages. Native extraction is retained because it is usually best
+    for emails/phone numbers; OCR is added when the native layer is sparse.
+    """
+    doc = fitz.open(stream=data, filetype="pdf")
     try:
-        pages = []
-
+        native_pages = []
         for page in doc:
-            text = page.get_text("text").strip()
-
-            if text:
-                pages.append(text)
-
-        extracted = "\n\n".join(pages)
-
-        # OCR fallback only when the PDF has little/no selectable text.
-        # Do not force OCR on short-but-valid text PDFs because Tesseract may
-        # not be installed on every machine. If OCR is unavailable, keep the
-        # extracted PDF text and let the resume validator decide.
-        if len(extracted.strip()) < 120:
-            ocr_pages = []
             try:
-                for page in doc:
-                    pix = page.get_pixmap(
-                        matrix=fitz.Matrix(2.0, 2.0),
-                        alpha=False,
-                    )
-                    image = Image.frombytes(
-                        "RGB",
-                        [pix.width, pix.height],
-                        pix.samples,
-                    )
-                    ocr_text = pytesseract.image_to_string(image)
-                    if ocr_text.strip():
-                        ocr_pages.append(ocr_text)
-            except Exception as ocr_error:
-                print("PDF OCR fallback unavailable:", repr(ocr_error))
+                text = page.get_text("text").strip()
+                if text:
+                    native_pages.append(text)
+            except Exception as exc:
+                print("PDF native text error:", repr(exc))
 
-            ocr_extracted = "\n\n".join(ocr_pages)
-            if len(ocr_extracted.strip()) > len(extracted.strip()):
-                extracted = ocr_extracted
+        native = clean_text("\n\n".join(native_pages))
 
-        return clean_text(extracted)
+        # OCR only when needed, so ordinary text PDFs remain fast and accurate.
+        if len(native) < 1600:
+            ocr_pages = []
+            for page in doc:
+                try:
+                    pix = page.get_pixmap(matrix=fitz.Matrix(2.6, 2.6), alpha=False)
+                    image = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                    gray = ImageOps.grayscale(image)
+                    gray = ImageOps.autocontrast(gray)
+                    page_texts = []
+                    for config in ("--psm 6", "--psm 11"):
+                        value = pytesseract.image_to_string(gray, config=config)
+                        if value.strip():
+                            page_texts.append(value)
+                    if page_texts:
+                        # Keep both layouts; clean_text collapses duplicate whitespace.
+                        ocr_pages.append("\n".join(page_texts))
+                except Exception as exc:
+                    print("PDF OCR page error:", repr(exc))
 
+            ocr = clean_text("\n\n".join(ocr_pages))
+            if ocr:
+                # Native text first preserves high-confidence selectable text.
+                # OCR supplements missing visual text such as contact lines.
+                native = clean_text(native + "\n\n" + ocr)
+
+        return clean_text(native)
     finally:
         doc.close()
 
@@ -216,20 +221,52 @@ def extract_from_docx(data: bytes) -> str:
 
 
 def extract_from_image(data: bytes) -> str:
+    """High-recall OCR for JPG/PNG resumes, with extra attention to contacts."""
+    image = Image.open(io.BytesIO(data))
+    image = ImageOps.exif_transpose(image).convert("RGB")
 
-    image = Image.open(
-        io.BytesIO(data)
-    )
+    # Upscale small phone screenshots/photos before OCR.
+    scale = 3 if max(image.size) < 1800 else (2 if max(image.size) < 2800 else 1)
+    if scale > 1:
+        image = image.resize((image.width * scale, image.height * scale))
 
-    image = ImageOps.exif_transpose(
-        image
-    ).convert("RGB")
+    gray = ImageOps.grayscale(image)
+    enhanced = ImageOps.autocontrast(gray)
+    threshold = enhanced.point(lambda p: 255 if p > 175 else 0)
+    variants = [
+        (enhanced, "--psm 6"),
+        (enhanced, "--psm 11"),
+        (threshold, "--psm 11"),
+    ]
 
-    text = pytesseract.image_to_string(
-        image
-    )
+    texts = []
+    for variant, config in variants:
+        try:
+            value = pytesseract.image_to_string(variant, config=config)
+            if value.strip():
+                texts.append(value)
+        except Exception as exc:
+            print("Image OCR error:", repr(exc))
 
-    return clean_text(text)
+    # A contact-focused pass catches phone/email lines that a whole-page layout
+    # can miss. This is intentionally only an extraction aid; it never invents data.
+    try:
+        top = enhanced.crop((0, 0, enhanced.width, max(1, int(enhanced.height * 0.30))))
+        for config in ("--psm 6", "--psm 11"):
+            value = pytesseract.image_to_string(top, config=config)
+            if value.strip():
+                texts.append(value)
+    except Exception as exc:
+        print("Contact OCR error:", repr(exc))
+
+    # De-duplicate repeated OCR lines while preserving order.
+    seen = set(); merged = []
+    for block in texts:
+        for line in block.splitlines():
+            line = re.sub(r"\s+", " ", line).strip()
+            if line and line.lower() not in seen:
+                seen.add(line.lower()); merged.append(line)
+    return clean_text("\n".join(merged))
 
 
 async def extract_resume_text(
@@ -272,6 +309,37 @@ async def extract_resume_text(
 
 
 # =========================================================
+# CONTACT EXTRACTION HELPERS
+# =========================================================
+
+def normalize_contact_text(text: str) -> str:
+    value = (text or '').replace('\u00a0', ' ')
+    # Normalize common OCR punctuation without destroying number separators.
+    value = value.replace('−', '-').replace('–', '-').replace('—', '-')
+    return value
+
+
+def has_phone_number(text: str) -> bool:
+    value = normalize_contact_text(text)
+    patterns = [
+        r'(?<!\d)(?:\+?91[\s().-]*)?[6-9](?:[\s().-]*\d){9}(?!\d)',
+        r'(?<!\d)[6-9]\d{4}[\s.-]\d{5}(?!\d)',
+        r'(?i)(?:phone|mobile|mob|contact|tel)\s*[:#-]?\s*(?:\+?91[\s.-]*)?[6-9][0-9OIl\s().-]{8,14}',
+    ]
+    if any(re.search(pattern, value) for pattern in patterns):
+        return True
+    # OCR frequently turns 0/1 into O/I. Only apply this correction on a
+    # contact-labelled fragment so unrelated resume numbers are not changed.
+    for line in value.splitlines():
+        if re.search(r'(?i)\b(phone|mobile|mob|contact|tel)\b', line):
+            candidate = re.sub(r'(?i)[OI]', lambda m: '0' if m.group(0).upper() == 'O' else '1', line)
+            digits = re.sub(r'\D', '', candidate)
+            if len(digits) >= 10 and any(digits[i] in '6789' for i in range(max(0, len(digits)-10), len(digits)-9)):
+                return True
+    return False
+
+
+# =========================================================
 # RESUME VALIDATION
 # =========================================================
 
@@ -301,7 +369,7 @@ def looks_like_resume(text: str, filename: str = "") -> bool:
         return False
 
     email = bool(re.search(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", cleaned, re.I))
-    phone = bool(re.search(r"(?:\+91[\s-]?)?[6-9]\d{9}\b", cleaned))
+    phone = has_phone_number(cleaned)
     linkedin = "linkedin.com" in lower or "linkedin " in lower
     github = "github.com" in lower or "github " in lower
 
@@ -332,38 +400,32 @@ def looks_like_resume(text: str, filename: str = "") -> bool:
     explicit_resume_name = any(term in filename_lower for term in ("resume", "cv", "curriculum", "biodata", "bio-data"))
     explicit_resume_wording = bool(re.search(r"\b(resume|curriculum vitae|curriculum-vitae|cv)\b", lower))
 
-    # Strongly structured resumes should always pass.
+    # A structured resume is accepted even if contact extraction is imperfect.
+    if section_hits >= 3 and len(cleaned) >= 120:
+        return True
+
     if section_hits >= 4:
         return True
 
-    # Typical student/fresher resume: a few recognizable sections plus at least
-    # one career/contact signal. This intentionally favors avoiding false
-    # rejection over requiring perfect heading extraction.
-    if section_hits >= 3 and (email or phone or linkedin or github or len(skills) >= 1 or professional_hits >= 1):
+    # Typical student/fresher resume: identity/contact + education/skills/projects.
+    if section_hits >= 3 and (email or phone or linkedin or github or len(skills) >= 2):
         return True
 
-    # Normal professional resume with two or more recognizable sections.
-    if section_hits >= 2 and (email or phone or linkedin or github or len(skills) >= 1 or action_verbs or professional_hits >= 1):
+    # Typical professional resume with 2 clear sections and professional evidence.
+    if section_hits >= 2 and (email or phone or linkedin or github) and (len(skills) >= 1 or action_verbs or professional_hits >= 2):
         return True
 
-    # Many exported PDFs flatten headings or lose contact links. Accept when at
-    # least two independent resume signals remain in the extracted text.
-    resume_signals = sum([
-        bool(email or phone or linkedin or github),
-        section_hits >= 1,
-        len(skills) >= 1,
-        bool(action_verbs),
-        professional_hits >= 1,
-        bool(re.search(r"\b(b\.?tech|b\.?e\.?|bachelor|master|mba|mca|degree|university|college|internship|developer|engineer)\b", lower)),
-    ])
-    if len(cleaned) >= 50 and resume_signals >= 2:
+    # Some exported/scanned resumes have almost no heading extraction. Strong
+    # contact + career evidence is enough, provided the document is not a known
+    # non-resume document.
+    if (email or phone) and (len(skills) >= 2 or action_verbs or professional_hits >= 3) and len(cleaned) >= 70:
         return True
 
     # Filename is supporting evidence, not the only reason to accept arbitrary text.
-    if explicit_resume_name and (email or phone or linkedin or github or section_hits >= 1 or len(skills) >= 1 or professional_hits >= 1):
+    if explicit_resume_name and len(cleaned) >= 35 and (email or phone or linkedin or github or section_hits >= 1 or len(skills) >= 1 or professional_hits >= 1):
         return True
 
-    if explicit_resume_wording and (section_hits >= 1 or email or phone or len(skills) >= 1 or professional_hits >= 1):
+    if explicit_resume_wording and (section_hits >= 1 or email or phone or len(skills) >= 1):
         return True
 
     return False
@@ -876,12 +938,7 @@ def analyze_contact_quality(
         text
     ) > 0
 
-    phone_found = bool(
-        re.search(
-            r"(?:\+91[\s-]?)?[6-9]\d{9}",
-            text,
-        )
-    )
+    phone_found = has_phone_number(text)
 
     linkedin_found = (
         "linkedin.com" in lower
@@ -2077,8 +2134,13 @@ STRICT RULES:
 
 RESUME:
 ----------------
-{resume_text[:30000]}
+{resume_text}
 ----------------
+
+Before writing feedback, review the complete extracted resume from beginning to end.
+Cross-check contact details, section presence, skills, education, experience, projects,
+certifications and achievements against the actual text. If OCR appears noisy, do not
+turn an unclear token into a confident claim; say it is unclear instead.
 """
 
     try:
@@ -3536,10 +3598,11 @@ async def analyze_resume(
         )
 
         if len(text.strip()) < 35:
+
             return {
                 "success": False,
                 "message": (
-                    "We could not read enough text from this file. Please upload a clearer resume PDF/DOCX or a high-quality JPG/PNG."
+                    "Could not extract enough text. Please upload a clear resume."
                 ),
             }
 

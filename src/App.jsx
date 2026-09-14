@@ -6,6 +6,28 @@ const API_URL =
     ? "http://127.0.0.1:8000"
     : "https://resumeai-docker.onrender.com";
 
+function getGuestId() {
+  try {
+    let id = localStorage.getItem("resumeai_guest_id");
+    if (!id) {
+      id = typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `guest-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem("resumeai_guest_id", id);
+    }
+    return id;
+  } catch {
+    return "guest-browser";
+  }
+}
+
+function apiAuthHeaders() {
+  const token = localStorage.getItem("resumeai_token");
+  return token
+    ? { Authorization: `Bearer ${token}` }
+    : { "X-Guest-ID": getGuestId() };
+}
+
 const SECTION_LIST = [
   ["contact", "Contact"],
   ["summary", "Summary"],
@@ -183,9 +205,8 @@ function renderEnhancedPreview(text, photoDataUrl = "") {
   );
 }
 
-function WorkspaceModules({ page, currentUser, onNavigate }) {
-  const token = localStorage.getItem("resumeai_token");
-  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+function WorkspaceModules({ page, currentUser, onNavigate, resumeJobId, onLogout }) {
+  const headers = apiAuthHeaders();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [mockRole, setMockRole] = useState("Software Engineer");
@@ -193,14 +214,17 @@ function WorkspaceModules({ page, currentUser, onNavigate }) {
   const [mockAnswer, setMockAnswer] = useState("");
   const [mockResult, setMockResult] = useState(null);
   const [mockNumber, setMockNumber] = useState(1);
+  const [mockLanguage, setMockLanguage] = useState("English");
+  const [mockListening, setMockListening] = useState(false);
+  const [mockMode, setMockMode] = useState("text");
+  const [aiSpeaking, setAiSpeaking] = useState(false);
+  const [settingsTab, setSettingsTab] = useState("Account");
   const [jobs, setJobs] = useState([]);
   const [jobSearch, setJobSearch] = useState("");
   const [applications, setApplications] = useState([]);
   const [appForm, setAppForm] = useState({ company: "", role: "", location: "", url: "", status: "Applied", notes: "" });
-  const emptyProfile = { name: currentUser?.name || "", email: currentUser?.email || "", phone: "", location: "", headline: "", bio: "", skills: "" };
-  const normalizeProfile = (value) => ({ ...emptyProfile, ...(value && typeof value === "object" ? value : {}) });
-  const [profile, setProfile] = useState(emptyProfile);
-  const [settings, setSettings] = useState({ email_notifications: true, weekly_summary: true, language: "English" });
+  const [profile, setProfile] = useState({ name: currentUser?.name || "", email: currentUser?.email || "", phone: "", location: "", headline: "", bio: "", skills: "" });
+  const [settings, setSettings] = useState(() => ({ email_notifications: true, weekly_summary: true, language: "English", theme: (() => { try { return localStorage.getItem("resumeai_theme") || "system"; } catch { return "system"; } })(), voice_enabled: true, voice_gender: "female" }));
   const [analytics, setAnalytics] = useState(null);
   const [premium, setPremium] = useState(null);
 
@@ -215,11 +239,12 @@ function WorkspaceModules({ page, currentUser, onNavigate }) {
   }
 
   useEffect(() => {
-    if (!currentUser || !token) return;
+    // Guest mode is supported; account login is optional.
+    if (!page) return;
     setMessage("");
     if (page === "applications") api("/api/applications").then(d => setApplications(d.applications || [])).catch(e => setMessage(e.message));
-    else if (page === "profile") api("/api/profile").then(d => setProfile(normalizeProfile(d.profile))).catch(e => setMessage(e.message));
-    else if (page === "settings") api("/api/settings").then(d => setSettings(d.settings)).catch(e => setMessage(e.message));
+    else if (page === "profile") api("/api/profile").then(d => setProfile(prev => ({...prev, ...(d.profile || {})}))).catch(e => setMessage(e.message));
+    else if (page === "settings") api("/api/settings").then(d => setSettings(prev => ({...prev, ...(d.settings || {})}))).catch(e => setMessage(e.message));
     else if (page === "analytics") api("/api/analytics").then(d => setAnalytics(d.analytics)).catch(e => setMessage(e.message));
     else if (page === "premium") api("/api/premium/status").then(setPremium).catch(e => setPremium({ message: "Premium is currently being prepared." }));
     else if (page === "jobs") loadJobs("");
@@ -229,8 +254,77 @@ function WorkspaceModules({ page, currentUser, onNavigate }) {
     }).catch(() => {});
   }, [page, currentUser]);
 
+  useEffect(() => {
+    const theme = settings.theme || "system";
+    document.documentElement.dataset.resumeaiTheme = theme;
+    if (theme === "dark") document.documentElement.classList.add("resumeai-dark");
+    else document.documentElement.classList.remove("resumeai-dark");
+    try { localStorage.setItem("resumeai_theme", theme); } catch {}
+  }, [settings.theme]);
+
+  function startVoiceInput() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setMessage("Voice input is not supported by this browser. You can still type your answer.");
+      return;
+    }
+    if (mockListening) return;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = mockLanguage === "Hindi" ? "hi-IN" : "en-IN";
+    recognition.onstart = () => setMockListening(true);
+    recognition.onend = () => setMockListening(false);
+    recognition.onerror = () => { setMockListening(false); setMessage("Voice input could not be captured. Please try again or type your answer."); };
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results || []).map(r => r[0]?.transcript || "").join(" ").trim();
+      if (transcript) setMockAnswer(prev => prev ? `${prev} ${transcript}` : transcript);
+    };
+    recognition.start();
+  }
+
+  function speakAIQuestion(text = mockSession?.question) {
+    if (!text || !settings.voice_enabled || !window.speechSynthesis) return;
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      const voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
+      const wantedLang = mockLanguage === "Hindi" ? "hi-IN" : "en-IN";
+      const gender = settings.voice_gender === "male" ? "male" : "female";
+      const genderWords = gender === "male" ? ["male", "man", "ravi", "amit", "arjun", "guy"] : ["female", "woman", "zira", "heera", "neerja", "samantha"];
+      const ranked = [...voices].sort((a,b) => {
+        const aLang = (a.lang || "").toLowerCase().startsWith(wantedLang.slice(0,2).toLowerCase()) ? 2 : 0;
+        const bLang = (b.lang || "").toLowerCase().startsWith(wantedLang.slice(0,2).toLowerCase()) ? 2 : 0;
+        const aGender = genderWords.some(w => a.name.toLowerCase().includes(w)) ? 1 : 0;
+        const bGender = genderWords.some(w => b.name.toLowerCase().includes(w)) ? 1 : 0;
+        return (bLang+bGender) - (aLang+aGender);
+      });
+      if (ranked[0]) { utterance.voice = ranked[0]; utterance.lang = ranked[0].lang || wantedLang; } else utterance.lang = wantedLang;
+      utterance.rate = 0.95; utterance.pitch = gender === "male" ? 0.9 : 1.05;
+      utterance.onstart = () => setAiSpeaking(true);
+      utterance.onend = () => setAiSpeaking(false);
+      utterance.onerror = () => setAiSpeaking(false);
+      window.speechSynthesis.speak(utterance);
+    } catch { setAiSpeaking(false); }
+  }
+
+  useEffect(() => {
+    if (page === "mocks" && mockSession?.question && mockMode === "voice" && settings.voice_enabled) {
+      const timer = setTimeout(() => speakAIQuestion(mockSession.question), 250);
+      return () => clearTimeout(timer);
+    }
+  }, [mockSession?.question, mockMode, settings.voice_enabled, settings.voice_gender, page]);
+
+  useEffect(() => () => {
+    try { window.speechSynthesis?.cancel(); } catch {}
+  }, []);
+
+  function goToResumeSection(id) {
+    onNavigate("resume");
+    window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
+  }
+
   async function loadJobs(search) {
-    if (!currentUser) return onNavigate("login");
     setBusy(true); setMessage("");
     try { const d = await api(`/api/jobs?search=${encodeURIComponent(search)}`); setJobs(d.jobs || []); }
     catch (e) { setMessage(e.message); }
@@ -238,10 +332,11 @@ function WorkspaceModules({ page, currentUser, onNavigate }) {
   }
 
   async function startMock() {
-    if (!currentUser) return onNavigate("login");
     setBusy(true); setMessage(""); setMockResult(null); setMockAnswer(""); setMockNumber(1);
-    try { const d = await api("/api/mocks/start", { method: "POST", body: JSON.stringify({ role: mockRole }) }); setMockSession({ id: d.session_id, question: d.question, role: d.role }); }
-    catch (e) { setMessage(e.message); }
+    try {
+      const d = await api("/api/mocks/start", { method: "POST", body: JSON.stringify({ role: mockRole, language: mockLanguage, resume_job_id: resumeJobId || "" }) });
+      setMockSession({ id: d.session_id, question: d.question, role: d.role, language: d.language });
+    } catch (e) { setMessage(e.message); }
     finally { setBusy(false); }
   }
 
@@ -256,12 +351,9 @@ function WorkspaceModules({ page, currentUser, onNavigate }) {
   }
 
   function nextMockQuestion() {
-    if (mockNumber >= 10) {
-      setMockSession(null);
-      setMockResult({ final: true, score: mockResult?.score, feedback: "Interview complete. Review your final result and use the feedback to improve your next attempt." });
-      return;
-    }
-    setMockNumber(n => n + 1);
+    if (!mockResult?.next_question) return;
+    setMockSession(prev => prev ? { ...prev, question: mockResult.next_question } : prev);
+    setMockNumber(mockResult.next_question_number || (mockNumber + 1));
     setMockResult(null);
     setMockAnswer("");
   }
@@ -297,15 +389,21 @@ function WorkspaceModules({ page, currentUser, onNavigate }) {
     finally { setBusy(false); }
   }
 
-  if (!currentUser && !["resources"].includes(page)) {
-    return <SimplePage title="Login required" icon="🔐" description="Create an account or sign in to use this workspace feature."><div className="workspace-module"><p>Please log in first so your data can be saved to your account.</p><button className="workspace-primary" onClick={() => onNavigate("login")}>Login →</button></div></SimplePage>;
-  }
-
-  if (page === "mocks") return <SimplePage title="Mock Interviews" icon="🎤" description="Practice with AI-powered questions and objective answer feedback.">
-    <div className="professional-module">
-      {!mockSession && !mockResult?.final && <div className="mock-start-card"><div className="module-icon">🎤</div><div><span className="eyebrow">AI INTERVIEW PRACTICE</span><h2>Prepare for your next interview</h2><p>Answer up to exactly 10 role-focused questions and receive feedback after every answer.</p></div><div className="mock-role-row"><input value={mockRole} onChange={e => setMockRole(e.target.value)} placeholder="Target role, e.g. Software Engineer"/><button className="workspace-primary" onClick={startMock} disabled={busy}>{busy ? "Starting..." : "Start Interview →"}</button></div></div>}
-      {mockSession && <div className="mock-question-card"><div className="mock-progress"><span>QUESTION {mockNumber} OF 10</span><div><i style={{ width: `${(mockNumber / 10) * 100}%` }} /></div></div><h2>{mockSession.question}</h2><p className="muted">Role: {mockSession.role || mockRole}</p><textarea rows="8" value={mockAnswer} onChange={e => setMockAnswer(e.target.value)} placeholder="Write your answer in your own words..."/><button className="workspace-primary" onClick={submitMock} disabled={busy || !mockAnswer.trim()}>{busy ? "Evaluating..." : "Submit Answer →"}</button>{mockResult && !mockResult.final && <div className="mock-feedback"><div><span>Answer Score</span><strong>{mockResult.score ?? "—"}/100</strong></div><p>{mockResult.feedback || mockResult.message || "Feedback received."}</p><button onClick={nextMockQuestion}>{mockNumber >= 10 ? "Finish Interview" : "Next Question →"}</button></div>}</div>}
-      {mockResult?.final && <div className="mock-final-card"><div className="module-icon">🏆</div><span className="eyebrow">INTERVIEW COMPLETE</span><h2>Your 10-question mock interview is complete.</h2><p>{mockResult.feedback}</p>{mockResult.score != null && <div className="final-score">{mockResult.score}<small>/100</small></div>}<button className="workspace-primary" onClick={startMock}>Start New Interview →</button></div>}
+  if (page === "mocks") return <SimplePage title="AI Mock Interviews" icon="🤖" description="Practice with an adaptive AI interviewer that listens, responds and evaluates your answers.">
+    <div className="professional-module mock-ai-suite animated-module">
+      {!mockSession && !mockResult?.final && <div className="mock-ai-hero">
+        <div className="mock-robot-orb">🤖</div>
+        <div className="mock-ai-copy"><span className="eyebrow">RESUMEAI AI INTERVIEWER</span><h2>Practice like it is a real interview.</h2><p>The AI reads your resume when available, asks exactly 10 adaptive questions and evaluates each answer before moving forward.</p></div>
+        <div className="mock-ai-controls"><label>Target role<input value={mockRole} onChange={e => setMockRole(e.target.value)} placeholder="e.g. Software Engineer" /></label><label>Interview language<select value={mockLanguage} onChange={e => setMockLanguage(e.target.value)}><option>English</option><option>Hindi</option><option>Hinglish</option></select></label><div className="mock-mode-picker"><span>Interview mode</span><button type="button" className={mockMode === "text" ? "selected" : ""} onClick={() => setMockMode("text")}>💬 Text AI</button><button type="button" className={mockMode === "voice" ? "selected" : ""} onClick={() => setMockMode("voice")}>🎙️ Voice AI</button></div><button className="workspace-primary glow-action" onClick={startMock} disabled={busy}>{busy ? "Preparing AI Interview..." : "Start 10-Question Interview →"}</button></div>
+      </div>}
+      {mockSession && <div className="mock-live-shell">
+        <div className="mock-live-top"><div><span className="eyebrow">🤖 LIVE AI INTERVIEW</span><h2>{mockSession.role || mockRole}</h2></div><div className="mock-language-chip">🌐 {mockSession.language || mockLanguage}</div></div>
+        <div className="mock-progress"><span>QUESTION {mockNumber} OF 10</span><div><i style={{ width: `${(mockNumber / 10) * 100}%` }} /></div></div>
+        <div className="mock-question-bubble"><div className="mock-speaker-line"><span>🤖 AI Interviewer</span>{mockMode === "voice" && <button type="button" className="voice-play-btn" onClick={() => speakAIQuestion(mockSession.question)}>{aiSpeaking ? "🔊 Speaking..." : "🔊 Hear question"}</button>}</div><h2>{mockSession.question}</h2><small className="mock-conversation-hint">{mockMode === "voice" ? "AI asks by voice. You can answer by voice or type your answer below." : "AI asks in chat. Type your answer below, or switch to Voice AI for spoken practice."}</small></div>
+        <div className="mock-answer-area"><div className="mock-answer-heading"><div><strong>Your answer</strong><small>Speak or type naturally. The AI evaluates what you actually say.</small></div><button type="button" className={`voice-btn ${mockListening ? "listening" : ""}`} onClick={startVoiceInput}>{mockListening ? "🎙️ Listening..." : "🎙️ Speak answer"}</button></div><textarea rows="8" value={mockAnswer} onChange={e => setMockAnswer(e.target.value)} placeholder={mockLanguage === "Hindi" ? "Apna answer yahan likhein..." : mockLanguage === "Hinglish" ? "Apna answer yahan type karein..." : "Write your answer in your own words..."}/><button className="workspace-primary" onClick={submitMock} disabled={busy || !mockAnswer.trim()}>{busy ? "🤖 Evaluating your answer..." : "Send Answer →"}</button></div>
+        {mockResult && !mockResult.final && <div className="mock-feedback-pro"><div className="mock-score-pill">{mockResult.score ?? "—"}<small>/100</small></div><div><span className="eyebrow">AI FEEDBACK</span><h3>{mockResult.feedback}</h3>{mockResult.strengths && <p><strong>Strength:</strong> {mockResult.strengths}</p>}{mockResult.improvement && <p><strong>Improve:</strong> {mockResult.improvement}</p>}</div><button className="workspace-primary" onClick={nextMockQuestion}>Next AI Question →</button></div>}
+      </div>}
+      {mockResult?.final && <div className="mock-final-card mock-final-pro"><div className="mock-robot-orb">🏆</div><span className="eyebrow">10 / 10 COMPLETE</span><h2>Mock interview complete.</h2><div className="final-score">{mockResult.final_score ?? mockResult.score}<small>/100</small></div><p>{mockResult.final_feedback || mockResult.feedback}</p><div className="mock-final-actions"><button className="workspace-primary" onClick={startMock}>Start New Interview →</button><button className="secondary-action" onClick={() => onNavigate("analytics")}>View Career Analytics</button></div></div>}
       {message && <p className="module-message">{message}</p>}
     </div>
   </SimplePage>;
@@ -369,57 +467,49 @@ function WorkspaceModules({ page, currentUser, onNavigate }) {
     </div>
   </SimplePage>;
 
-  if (page === "profile") return <SimplePage title="Profile" icon="👤" description="Manage the career information connected to your ResumeAI account.">
-    <div className="professional-module profile-pro animated-module">
-      <div className="profile-pro-banner">
-        <div className="profile-avatar-xl">{(profile.name || "U").slice(0,1).toUpperCase()}</div>
-        <div className="profile-identity"><span className="eyebrow">YOUR CAREER IDENTITY</span><h2>{profile.name || "Your Name"} <span className="verified-dot">✓</span></h2><p>{profile.headline || "Aspiring professional · Complete your profile to stand out."}</p><div className="profile-meta"><span>✉️ {profile.email || "Email not added"}</span><span>📍 {profile.location || "Location not added"}</span><span>💼 ResumeAI Profile</span></div></div>
-        <div className="profile-completion"><strong>{Math.min(100, Math.round(([profile.name,profile.email,profile.phone,profile.location,profile.headline,profile.bio,profile.skills].filter(Boolean).length / 7) * 100))}%</strong><small>Profile complete</small></div>
-      </div>
-      <div className="profile-stat-strip"><div><span>🎯</span><strong>{profile.skills ? profile.skills.split(/[,|\n]+/).map(s => s.trim()).filter(Boolean).length : "—"}</strong><small>Skills on record</small></div><div><span>📄</span><strong>Ready</strong><small>Resume workspace</small></div><div><span>✨</span><strong>{profile.headline ? "Ready" : "Add"}</strong><small>Career headline</small></div></div>
-      <form className="profile-grid-pro profile-form-modern" onSubmit={saveProfile}>
-        <div className="profile-section-heading"><span>👤</span><div><h3>Personal information</h3><p>Keep the basics of your professional identity up to date.</p></div></div>
-        <label>Full Name<input value={profile.name} onChange={e=>setProfile({...profile,name:e.target.value})} placeholder="Your name" required/></label>
-        <label>Email Address<input value={profile.email} readOnly/></label>
-        <label>Phone Number<input value={profile.phone} onChange={e=>setProfile({...profile,phone:e.target.value})} placeholder="Phone number"/></label>
-        <label>Location<input value={profile.location} onChange={e=>setProfile({...profile,location:e.target.value})} placeholder="City, Country"/></label>
-        <div className="profile-section-heading"><span>💼</span><div><h3>Career information</h3><p>Tell ResumeAI how you want to present your professional profile.</p></div></div>
-        <label className="full">Professional Headline<input value={profile.headline} onChange={e=>setProfile({...profile,headline:e.target.value})} placeholder="e.g. Software Developer | React & Python"/></label>
-        <label className="full">Professional Summary<textarea rows="5" value={profile.bio} onChange={e=>setProfile({...profile,bio:e.target.value})} placeholder="Write a concise professional introduction..."/></label>
-        <label className="full">Skills & Technologies<textarea rows="3" value={profile.skills} onChange={e=>setProfile({...profile,skills:e.target.value})} placeholder="Python, React, FastAPI, SQL..."/></label>
-        <div className="profile-form-footer full"><span>🔒 Your profile is saved to your ResumeAI account.</span><button className="workspace-primary glow-action" disabled={busy}>{busy ? "Saving..." : "Save Profile →"}</button></div>
-      </form>
-      {message && <p className="module-message">{message}</p>}
+  if (page === "profile") return <SimplePage title="Profile" icon="👤" description="Build the professional identity ResumeAI uses across your career workspace.">
+    <div className="professional-module profile-command-center animated-module">
+      <div className="profile-hero-pro"><div className="profile-avatar-xl profile-avatar-gradient">{(profile.name || "U").slice(0,1).toUpperCase()}</div><div className="profile-hero-copy"><span className="eyebrow">CAREER IDENTITY</span><h2>{profile.name || "Your Name"} <span className="verified-dot">✓</span></h2><p>{profile.headline || "Add a professional headline to make your profile stronger."}</p><div className="profile-meta"><span>✉️ {profile.email || "Email not added"}</span><span>📍 {profile.location || "Location not added"}</span></div></div><div className="profile-completion-ring"><strong>{Math.min(100, Math.round(([profile.name,profile.email,profile.phone,profile.location,profile.headline,profile.bio,profile.skills].filter(Boolean).length / 7) * 100))}%</strong><small>Complete</small></div></div>
+      <div className="profile-insight-grid"><div><span>🎯</span><small>Career readiness</small><strong>{profile.headline && profile.skills ? "Ready" : "In progress"}</strong></div><div><span>🧠</span><small>Skills listed</small><strong>{profile.skills ? profile.skills.split(/[,|\n]/).filter(Boolean).length : 0}</strong></div><div><span>📄</span><small>Resume analysis</small><strong>{resumeJobId ? "Analyzed" : "Not analyzed"}</strong></div><div><span>🎤</span><small>Interview practice</small><strong>10 questions</strong></div></div>
+      <form className="profile-editor-pro" onSubmit={saveProfile}><div className="profile-editor-title"><span>✨</span><div><h3>Professional profile</h3><p>These details stay connected to your ResumeAI workspace.</p></div></div><div className="profile-field-grid"><label>Full Name<input value={profile.name} onChange={e=>setProfile({...profile,name:e.target.value})} placeholder="Your name" required/></label><label>Email Address<input value={profile.email} readOnly/></label><label>Phone Number<input value={profile.phone} onChange={e=>setProfile({...profile,phone:e.target.value})} placeholder="+91 ..."/></label><label>Location<input value={profile.location} onChange={e=>setProfile({...profile,location:e.target.value})} placeholder="City, Country"/></label><label className="full">Professional Headline<input value={profile.headline} onChange={e=>setProfile({...profile,headline:e.target.value})} placeholder="e.g. Software Developer | React & Python"/></label><label className="full">Professional Summary<textarea rows="5" value={profile.bio} onChange={e=>setProfile({...profile,bio:e.target.value})} placeholder="Write a concise introduction based on your real experience..."/></label><label className="full">Skills & Technologies<textarea rows="3" value={profile.skills} onChange={e=>setProfile({...profile,skills:e.target.value})} placeholder="Python, React, FastAPI, SQL..."/></label></div><div className="profile-form-footer full"><span>🔒 Your profile is saved for your workspace.</span><button className="workspace-primary glow-action" disabled={busy}>{busy ? "Saving..." : "Save Profile →"}</button></div></form>{message && <p className="module-message">{message}</p>}
     </div>
   </SimplePage>;
 
-  if (page === "settings") return <SimplePage title="Settings" icon="⚙️" description="Manage your account, preferences and ResumeAI experience.">
-    <div className="professional-module settings-pro animated-module">
-      <div className="settings-pro-header"><div><span className="eyebrow">CONTROL CENTER</span><h2>Settings</h2><p>Personalize your ResumeAI workspace without losing your career data.</p></div><div className="settings-gear">⚙️</div></div>
-      <div className="settings-layout">
-        <aside className="settings-nav-card">
-          {[['👤','Account','Personal details and account information'],['🎨','Appearance','Theme and display preferences'],['🔔','Notifications','Email and weekly updates'],['📄','Resume Preferences','Resume upload and analysis'],['🤖','AI Preferences','AI assistant and suggestions'],['🔐','Security','Password and session management']].map(([icon,title,sub],i)=><div className={`settings-nav-item ${i===0?'active':''}`} key={title}><span>{icon}</span><div><strong>{title}</strong><small>{sub}</small></div></div>)}
-        </aside>
-        <section className="settings-content-card">
-          <div className="settings-account-preview"><div className="settings-avatar">{(currentUser?.name || profile.name || "U").slice(0,1).toUpperCase()}</div><div><strong>{currentUser?.name || profile.name || "ResumeAI User"}</strong><small>{profile.email || currentUser?.email || "Account email"}</small></div><span>✓ Account active</span></div>
-          <div className="settings-section"><div className="settings-section-title"><span>📧</span><div><h3>Notifications</h3><p>Choose what ResumeAI should send you.</p></div></div>
-            <div className="settings-row-pro"><div><h3>Email notifications</h3><p>Receive important account and feature updates.</p></div><label className="toggle"><input type="checkbox" checked={settings.email_notifications} onChange={e=>setSettings({...settings,email_notifications:e.target.checked})}/><span/></label></div>
-            <div className="settings-row-pro"><div><h3>Weekly career summary</h3><p>Receive a weekly summary of your ResumeAI activity.</p></div><label className="toggle"><input type="checkbox" checked={settings.weekly_summary} onChange={e=>setSettings({...settings,weekly_summary:e.target.checked})}/><span/></label></div>
-          </div>
-          <div className="settings-section"><div className="settings-section-title"><span>🤖</span><div><h3>AI preferences</h3><p>Set the preferred language for AI Career Chat responses.</p></div></div>
-            <div className="settings-language-row"><div><strong>AI response language</strong><small>Career Chat still understands English, Hindi and Hinglish.</small></div><select value={settings.language} onChange={e=>setSettings({...settings,language:e.target.value})}><option>English</option><option>Hindi</option><option>Hinglish</option></select></div>
-          </div>
-          <div className="settings-section settings-security-note"><div className="settings-section-title"><span>🔐</span><div><h3>Account security</h3><p>Keep your account access protected.</p></div></div><div className="security-chip">🛡️ Session protected</div></div>
-          <div className="settings-save-bar"><span>Changes are saved to your account.</span><button className="workspace-primary glow-action" onClick={saveSettings} disabled={busy}>{busy ? "Saving..." : "Save Changes →"}</button></div>
+  if (page === "settings") return <SimplePage title="Settings" icon="⚙️" description="Control your ResumeAI workspace, appearance and AI experience.">
+    <div className="professional-module settings-command-center animated-module">
+      <div className="settings-pro-header"><div><span className="eyebrow">CONTROL CENTER</span><h2>Settings</h2><p>Every control below is interactive and saves to your ResumeAI workspace.</p></div><div className="settings-gear">⚙️</div></div>
+      <div className="settings-layout settings-layout-pro">
+        <aside className="settings-nav-card settings-nav-interactive">{[['👤','Account','Personal details and account information'],['🎨','Appearance','Theme and display preferences'],['🔔','Notifications','Email and weekly updates'],['📄','Resume Preferences','Resume upload and analysis'],['🤖','AI Preferences','AI assistant and suggestions'],['🔐','Security','Password and session management']].map(([icon,title,sub])=><button type="button" className={`settings-nav-item ${settingsTab===title?'active':''}`} key={title} onClick={()=>setSettingsTab(title)}><span>{icon}</span><div><strong>{title}</strong><small>{sub}</small></div><b>›</b></button>)}</aside>
+        <section className="settings-content-card settings-content-pro">
+          {settingsTab === "Account" && <div className="settings-pane"><div className="settings-pane-head"><span>👤</span><div><h3>Account</h3><p>Your identity and account information.</p></div></div><div className="settings-account-preview"><div className="settings-avatar">{(currentUser?.name || profile.name || "U").slice(0,1).toUpperCase()}</div><div><strong>{currentUser?.name || profile.name || "ResumeAI User"}</strong><small>{profile.email || currentUser?.email || "Guest workspace"}</small></div><span>✓ Workspace active</span></div><button className="secondary-action" type="button" onClick={()=>onNavigate("profile")}>Open Full Profile →</button></div>}
+          {settingsTab === "Appearance" && <div className="settings-pane"><div className="settings-pane-head"><span>🎨</span><div><h3>Appearance</h3><p>Choose how ResumeAI looks on your device.</p></div></div><div className="theme-choice-grid">{[['light','☀️','Light','Clean bright workspace'],['dark','🌙','Dark','Low-light focused workspace'],['system','🖥️','System','Follow your device preference']].map(([value,icon,title,sub])=><button type="button" key={value} className={`theme-choice ${settings.theme===value?'selected':''}`} onClick={()=>setSettings({...settings,theme:value})}><span>{icon}</span><strong>{title}</strong><small>{sub}</small>{settings.theme===value && <b>✓</b>}</button>)}</div><div className="settings-live-note">✨ Theme changes apply immediately.</div></div>}
+          {settingsTab === "Notifications" && <div className="settings-pane"><div className="settings-pane-head"><span>🔔</span><div><h3>Notifications</h3><p>Choose which career updates you want.</p></div></div><div className="settings-toggle-list"><div className="settings-row-pro"><div><h3>Email notifications</h3><p>Important account and feature updates.</p></div><label className="toggle"><input type="checkbox" checked={settings.email_notifications} onChange={e=>setSettings({...settings,email_notifications:e.target.checked})}/><span/></label></div><div className="settings-row-pro"><div><h3>Weekly career summary</h3><p>A compact summary of your ResumeAI activity.</p></div><label className="toggle"><input type="checkbox" checked={settings.weekly_summary} onChange={e=>setSettings({...settings,weekly_summary:e.target.checked})}/><span/></label></div></div></div>}
+          {settingsTab === "Resume Preferences" && <div className="settings-pane"><div className="settings-pane-head"><span>📄</span><div><h3>Resume Preferences</h3><p>Controls for your resume workflow.</p></div></div><div className="preference-cards"><div><strong>Supported formats</strong><span>PDF · DOCX · JPG · JPEG · PNG</span></div><div><strong>Analysis style</strong><span>Evidence-based and honest scoring</span></div><div><strong>Enhancement</strong><span>Original photo preserved when available</span></div></div><div className="settings-live-note">💡 ResumeAI will never treat a suggestion as a fact from your resume.</div></div>}
+          {settingsTab === "AI Preferences" && <div className="settings-pane"><div className="settings-pane-head"><span>🤖</span><div><h3>AI Preferences</h3><p>Control how AI Career Chat and AI tools respond.</p></div></div><label className="settings-select-card"><span>AI response language</span><small>Career Chat understands English, Hindi and Hinglish.</small><select value={settings.language} onChange={e=>setSettings({...settings,language:e.target.value})}><option>English</option><option>Hindi</option><option>Hinglish</option></select></label><div className="settings-voice-card"><div><span>🎙️</span><div><strong>AI Interview Voice</strong><small>Choose whether the AI interviewer speaks and which voice style it uses.</small></div></div><label className="toggle"><input type="checkbox" checked={settings.voice_enabled} onChange={e=>setSettings({...settings,voice_enabled:e.target.checked})}/><span/></label><select value={settings.voice_gender} onChange={e=>setSettings({...settings,voice_gender:e.target.value})}><option value="female">Female voice</option><option value="male">Male voice</option></select></div><div className="ai-capability-grid"><span>🧠 Resume-grounded feedback</span><span>🎤 Adaptive mock interviews</span><span>💬 Multilingual chat</span><span>🔎 Evidence-aware suggestions</span></div></div>}
+          {settingsTab === "Security" && <div className="settings-pane"><div className="settings-pane-head"><span>🔐</span><div><h3>Security</h3><p>Manage your current ResumeAI session.</p></div></div><div className="security-panel"><div><span>🛡️</span><strong>{currentUser ? "Account session" : "Guest workspace"}</strong><small>{currentUser ? "Signed-in session is active." : "You can use ResumeAI without creating an account."}</small></div><button type="button" className="secondary-action" onClick={currentUser ? onLogout : ()=>setMessage("Guest mode is already active.")}>{currentUser ? "Log Out" : "Guest Mode Active"}</button></div></div>}
+          <div className="settings-save-bar"><span>✓ Changes are ready to save.</span><button className="workspace-primary glow-action" onClick={saveSettings} disabled={busy}>{busy ? "Saving..." : "Save Settings →"}</button></div>
         </section>
-      </div>
-      {message && <p className="module-message">{message}</p>}
+      </div>{message && <p className="module-message">{message}</p>}
     </div>
   </SimplePage>;
 
   if (page === "analytics") return <SimplePage title="Analytics" icon="📊" description="Real activity recorded in your ResumeAI account."><div className="analytics-grid-pro"><div className="analytics-card"><span>📋</span><small>Applications</small><strong>{analytics?.applications ?? "—"}</strong></div><div className="analytics-card"><span>🎤</span><small>Mock Interviews</small><strong>{analytics?.mock_interviews ?? "—"}</strong></div><div className="analytics-card"><span>🎯</span><small>Average Mock Score</small><strong>{analytics?.average_mock_score != null ? `${analytics.average_mock_score}%` : "—"}</strong></div></div>{message && <p className="module-message">{message}</p>}</SimplePage>;
 
-  if (page === "premium") return <SimplePage title="ResumeAI Premium" icon="👑" description="Premium features are being prepared for a future launch."><div className="premium-coming-soon"><div className="premium-hero"><div className="premium-crown">👑</div><span className="eyebrow">RESUMEAI PREMIUM</span><h2>Premium is coming soon 🚀</h2><p>We're building advanced career tools to make ResumeAI even more powerful. Premium is not available for purchase yet.</p><div className="premium-badge">✨ No payment required right now</div></div><div className="premium-features"><h3>What you can expect</h3><div className="premium-feature-grid"><div>✨<b>Advanced AI Resume Analysis</b><span>Deeper, more personalized resume recommendations.</span></div><div>🎯<b>ATS Optimization</b><span>Improve structure and keyword alignment for target roles.</span></div><div>📄<b>Premium Resume Templates</b><span>More professional, job-ready resume designs.</span></div><div>🤖<b>Advanced Career Advisor</b><span>More detailed career guidance based on your goals.</span></div><div>🎤<b>Advanced Mock Interviews</b><span>Role-specific practice and richer answer feedback.</span></div><div>💼<b>Job Match Insights</b><span>Understand how closely a resume fits a job.</span></div><div>🔄<b>Multiple Resume Versions</b><span>Create tailored versions for different roles.</span></div><div>📊<b>Advanced Career Analytics</b><span>Track progress across your resume and career activity.</span></div><div>🪄<b>Smart Resume Enhancement</b><span>More powerful formatting and content improvement tools.</span></div></div></div><button className="premium-notify" onClick={() => setMessage("Premium launch notifications will be available when the feature is ready.")}>🔔 Notify Me When Premium Launches</button>{message && <p className="module-message">{message}</p>}</div></SimplePage>;
+  if (page === "premium") return <SimplePage title="ResumeAI Future Lab" icon="👑" description="Next-generation career features planned for future ResumeAI releases.">
+    <div className="professional-module premium-command-center animated-module">
+      <div className="premium-hero premium-hero-live"><div className="premium-crown">🤖👑</div><span className="eyebrow">RESUMEAI FUTURE LAB</span><h2>What we are building next.</h2><p>These ideas are intentionally marked Coming Soon. They are not fake unlocks and will only appear as real features when implemented.</p></div>
+      <div className="premium-feature-grid premium-feature-grid-live premium-coming-grid">
+        {[
+          ["🧩","AI Resume Tailoring","Automatically adapt one resume to a specific job description while keeping your real experience intact."],
+          ["🧠","Career Skill Gap Map","Compare your demonstrated skills with a target role and create a practical learning roadmap."],
+          ["🎥","AI Video Interview Coach","Practice camera-based interview answers with feedback on clarity, structure and delivery."],
+          ["📈","Career Growth Forecast","Track resume, applications and interview progress to show how your job-readiness is changing over time."],
+          ["🌐","Personal Job Match Engine","Rank opportunities against your actual resume, preferences and demonstrated skills instead of generic keywords."],
+          ["🗂️","Smart Resume Version Manager","Keep multiple role-specific resume versions organized and compare what changed between them."]
+        ].map(([icon,title,desc])=><article className="premium-feature-live premium-coming-card" key={title}><span className="premium-feature-icon">{icon}</span><div><strong>{title}</strong><p>{desc}</p><b>🚀 Coming Soon</b></div></article>)}
+      </div>
+    </div>
+  </SimplePage>;
 
   return null;
 }
@@ -581,21 +671,12 @@ function App() {
     result?.breakdown || {};
 
   useEffect(() => {
-    if (!currentUser) return;
-    const token = localStorage.getItem("resumeai_token");
-    if (!token) return;
-
     fetch(`${API_URL}/api/dashboard`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: apiAuthHeaders(),
     })
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));
         if (response.status === 401) {
-          localStorage.removeItem("resumeai_token");
-          localStorage.removeItem("resumeai_user");
-          setCurrentUser(null);
-          setAuthMessage("Please log in again to this backend.");
-          setAuthMessageType("error");
           return null;
         }
         if (!response.ok) throw new Error(data.detail || "Could not load dashboard.");
@@ -768,10 +849,7 @@ function App() {
           `${API_URL}/analyze`,
           {
             method: "POST",
-            headers: (() => {
-              const token = localStorage.getItem("resumeai_token");
-              return token ? { Authorization: `Bearer ${token}` } : {};
-            })(),
+            headers: apiAuthHeaders(),
             body: formData,
           }
         );
@@ -791,17 +869,14 @@ function App() {
 
       setResult(data);
 
-      const dashboardToken = localStorage.getItem("resumeai_token");
-      if (dashboardToken) {
-        fetch(`${API_URL}/api/dashboard`, {
-          headers: { Authorization: `Bearer ${dashboardToken}` },
+      fetch(`${API_URL}/api/dashboard`, {
+        headers: apiAuthHeaders(),
+      })
+        .then((r) => r.ok ? r.json() : null)
+        .then((d) => {
+          if (d?.dashboard) setDashboardStats(d.dashboard);
         })
-          .then((r) => r.ok ? r.json() : null)
-          .then((d) => {
-            if (d?.dashboard) setDashboardStats(d.dashboard);
-          })
-          .catch(() => {});
-      }
+        .catch(() => {});
 
       const jobId =
         data.resume_job_id ||
@@ -1395,7 +1470,7 @@ function App() {
       <main className="workspace-page dashboard-reference-page">
         <div className="dashboard-topline">
           <div className="dashboard-search"><span>⌕</span><input placeholder="Search anything..." aria-label="Search anything" /></div>
-          <div className="dashboard-user"><span className="dashboard-notification">♢<i /></span><span className="dashboard-user-avatar">{(currentUser?.name || "U").slice(0,1).toUpperCase()}</span><strong>{currentUser?.name || "User"}</strong><span>⌄</span></div>
+          <div className="dashboard-user"><span className="dashboard-notification">🔔</span><span className="dashboard-user-avatar">{(currentUser?.name || "U").slice(0,1).toUpperCase()}</span><strong>{currentUser?.name || "User"}</strong><span>⌄</span></div>
         </div>
 
         <div className="dashboard-reference-grid">
@@ -1445,7 +1520,7 @@ function App() {
               {(suggestions.length ? suggestions.slice(0, 3) : ["Analyze a resume to generate personalized next steps.", "Review your resume score and section feedback.", "Use AI Career Advisor for career guidance."]).map((item, i) => (
                 <div className="dashboard-next-step" key={i}><span>✓</span><p>{item}</p></div>
               ))}
-              <button className="dashboard-ai-prompt" onClick={() => setActivePage("advisor")}><span>🎯</span><div><strong>Want to improve more?</strong><small>Try AI-powered career guidance.</small></div><b>›</b></button>
+
             </section>
           </aside>
         </div>
@@ -1458,7 +1533,7 @@ function App() {
   return (
     <div className="app-shell workspace-shell">
       <header className="workspace-topbar">
-        <button className="workspace-brand" onClick={() => setActivePage("dashboard")}><span className="workspace-brand-logo">R</span><span><b>Resume<span>AI</span></b><small>Career Intelligence</small></span></button>
+        <button className="workspace-brand" onClick={() => setActivePage("dashboard")}><span className="workspace-brand-logo">🤖</span><span><b>Resume<span>AI</span></b><small>Career Intelligence</small></span></button>
         <nav className="workspace-topnav"><button className={activePage === "dashboard" ? "active" : ""} onClick={() => setActivePage("dashboard")}>⌂ Dashboard</button><button className={activePage === "mocks" ? "active" : ""} onClick={() => setActivePage("mocks")}>▣ Mocks</button><button className={activePage === "jobs" ? "active" : ""} onClick={() => setActivePage("jobs")}>▣ Jobs</button><button className={activePage === "resources" ? "active" : ""} onClick={() => setActivePage("resources")}>▤ Resources</button><button className={activePage === "analytics" ? "active" : ""} onClick={() => setActivePage("analytics")}>⌁ Analytics</button></nav>
         <div className="workspace-account-wrap">
           <button className="workspace-account" onClick={() => setAccountOpen(!accountOpen)}>
@@ -1483,16 +1558,16 @@ function App() {
           )}
         </div>
       </header>
-      <aside className="workspace-sidebar"><div className="workspace-side-label">WORKSPACE</div><button className={activePage === "dashboard" ? "active" : ""} onClick={() => setActivePage("dashboard")}>⌂ <span>Dashboard</span></button><button className={activePage === "resume" ? "active" : ""} onClick={() => setActivePage("resume")}>▣ <span>Resume Analyzer</span></button><button className={activePage === "mocks" ? "active" : ""} onClick={() => setActivePage("mocks")}>◉ <span>Mocks</span></button><button className={activePage === "jobs" ? "active" : ""} onClick={() => setActivePage("jobs")}>▣ <span>Jobs</span></button><button className={activePage === "applications" ? "active" : ""} onClick={() => setActivePage("applications")}>➤ <span>My Applications</span></button><button className={activePage === "profile" ? "active" : ""} onClick={() => setActivePage("profile")}>◯ <span>Profile</span></button><button className={activePage === "settings" ? "active" : ""} onClick={() => setActivePage("settings")}>⚙ <span>Settings</span></button><div className="workspace-premium"><span>✦</span><h3>Upgrade to Premium</h3><p>Advanced AI tools and more career features.</p><button onClick={() => setActivePage("premium")}>Premium Coming Soon 🚀</button></div><div className="workspace-side-footer"><b>ResumeAI</b><span>Build Better Resumes.<br/>Get Better Jobs.</span></div></aside>
+      <aside className="workspace-sidebar"><div className="workspace-brand-mini"><span className="workspace-brand-robot">🤖</span><div><b>ResumeAI</b><small>AI Career Intelligence</small></div></div><div className="workspace-side-label">WORKSPACE</div><button className={activePage === "dashboard" ? "active" : ""} onClick={() => setActivePage("dashboard")}>🏠 <span>Dashboard</span></button><button className={activePage === "resume" ? "active" : ""} onClick={() => setActivePage("resume")}>📄 <span>Resume Analyzer</span></button><button className={activePage === "mocks" ? "active" : ""} onClick={() => setActivePage("mocks")}>🎤 <span>Mocks</span></button><button className={activePage === "jobs" ? "active" : ""} onClick={() => setActivePage("jobs")}>💼 <span>Jobs</span></button><button className={activePage === "applications" ? "active" : ""} onClick={() => setActivePage("applications")}>📋 <span>My Applications</span></button><button className={activePage === "profile" ? "active" : ""} onClick={() => setActivePage("profile")}>👤 <span>Profile</span></button><button className={activePage === "settings" ? "active" : ""} onClick={() => setActivePage("settings")}>⚙️ <span>Settings</span></button><div className="workspace-premium"><span>👑</span><h3>ResumeAI Advanced</h3><p>AI interviews, deeper analysis and career tools.</p><button onClick={() => setActivePage("premium")}>Open Advanced Tools →</button></div><div className="workspace-side-footer"><b>ResumeAI</b><span>Build Better Resumes.<br/>Get Better Jobs.</span></div></aside>
       <div className="workspace-content">
         {activePage === "dashboard" && <DashboardHome />}
-        {activePage === "mocks" && <WorkspaceModules page="mocks" currentUser={currentUser} onNavigate={setActivePage} />}
-        {activePage === "jobs" && <WorkspaceModules page="jobs" currentUser={currentUser} onNavigate={setActivePage} />}
-        {activePage === "applications" && <WorkspaceModules page="applications" currentUser={currentUser} onNavigate={setActivePage} />}
+        {activePage === "mocks" && <WorkspaceModules page="mocks" currentUser={currentUser} onNavigate={setActivePage} resumeJobId={resumeJobId} onLogout={handleLogout} />}
+        {activePage === "jobs" && <WorkspaceModules page="jobs" currentUser={currentUser} onNavigate={setActivePage} resumeJobId={resumeJobId} onLogout={handleLogout} />}
+        {activePage === "applications" && <WorkspaceModules page="applications" currentUser={currentUser} onNavigate={setActivePage} resumeJobId={resumeJobId} onLogout={handleLogout} />}
         {activePage === "resources" && <SimplePage title="Resources" icon="📚" description="Career resources from ResumeAI."><div className="workspace-module"><h2>Career Resources</h2><p>Resume writing, interview preparation and job-search guidance will be added here.</p></div></SimplePage>}
-        {activePage === "analytics" && <WorkspaceModules page="analytics" currentUser={currentUser} onNavigate={setActivePage} />}
-        {activePage === "profile" && <WorkspaceModules page="profile" currentUser={currentUser} onNavigate={setActivePage} />}
-        {activePage === "settings" && <WorkspaceModules page="settings" currentUser={currentUser} onNavigate={setActivePage} />}
+        {activePage === "analytics" && <WorkspaceModules page="analytics" currentUser={currentUser} onNavigate={setActivePage} resumeJobId={resumeJobId} onLogout={handleLogout} />}
+        {activePage === "profile" && <WorkspaceModules page="profile" currentUser={currentUser} onNavigate={setActivePage} resumeJobId={resumeJobId} onLogout={handleLogout} />}
+        {activePage === "settings" && <WorkspaceModules page="settings" currentUser={currentUser} onNavigate={setActivePage} resumeJobId={resumeJobId} onLogout={handleLogout} />}
         {activePage === "login" && (
           <SimplePage title="Login" icon="🔐" description="Sign in to your ResumeAI account.">
             <form className="workspace-auth" onSubmit={handleLogin}>
@@ -1570,7 +1645,7 @@ function App() {
             </form>
           </SimplePage>
         )}
-        {activePage === "premium" && <WorkspaceModules page="premium" currentUser={currentUser} onNavigate={setActivePage} />}
+        {activePage === "premium" && <WorkspaceModules page="premium" currentUser={currentUser} onNavigate={setActivePage} resumeJobId={resumeJobId} onLogout={handleLogout} />}
         {activePage === "resume" && <div className="workspace-resume-content">
       <header className="topbar">
         <div className="brand">
@@ -1978,7 +2053,7 @@ function App() {
 
           {/* AI ADVISOR */}
 
-          <section className="report-card ai-advisor">
+          <section id="ai-advisor-section" className="report-card ai-advisor">
             <div className="card-heading">
               <span>🤖</span>
               AI Career Advisor
@@ -2132,7 +2207,7 @@ function App() {
 
           {/* AI CHAT */}
 
-          <section className="report-card">
+          <section id="ai-chat-section" className="report-card">
             <div className="card-heading">
               <span>💬</span>
               AI Career Chat
@@ -2262,7 +2337,7 @@ function App() {
 
           {/* ENHANCE RESUME */}
 
-          <section className="report-card enhance-card">
+          <section id="enhance-resume-section" className="report-card enhance-card">
             <div className="card-heading">
               <span>✨</span>
               Enhance My Resume

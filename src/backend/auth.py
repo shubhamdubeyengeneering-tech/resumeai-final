@@ -1,11 +1,11 @@
-import os, sqlite3
+import os, sqlite3, re, hashlib, uuid
 from datetime import datetime, timedelta, timezone
 import jwt
 from pwdlib import PasswordHash
 from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel, Field
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'resumeai.db')
+DB_PATH = os.getenv('RESUMEAI_DB_PATH', os.path.join(os.path.dirname(__file__), 'resumeai.db'))
 SECRET_KEY = os.getenv('AUTH_SECRET_KEY', 'resumeai-development-secret-change-later')
 ALGORITHM = 'HS256'
 TOKEN_EXPIRE_MINUTES = 60 * 24 * 7
@@ -41,21 +41,49 @@ def create_access_token(user_id: int, email: str):
     expire = datetime.now(timezone.utc) + timedelta(minutes=TOKEN_EXPIRE_MINUTES)
     return jwt.encode({'sub': str(user_id), 'email': email, 'exp': expire}, SECRET_KEY, algorithm=ALGORITHM)
 
-def get_current_user(authorization: str | None = Header(default=None)):
-    if not authorization or not authorization.lower().startswith('bearer '):
-        raise HTTPException(status_code=401, detail='Authentication required.')
-    token = authorization.split(' ', 1)[1].strip()
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = int(payload['sub'])
-    except Exception:
-        raise HTTPException(status_code=401, detail='Invalid or expired login session.')
-    conn = get_db()
-    user = conn.execute('SELECT id, name, email, created_at FROM users WHERE id=?', (user_id,)).fetchone()
-    conn.close()
-    if not user:
-        raise HTTPException(status_code=401, detail='User account not found.')
-    return dict(user)
+def get_current_user(
+    authorization: str | None = Header(default=None),
+    x_guest_id: str | None = Header(default=None),
+):
+    # Logged-in accounts continue to work exactly as before.
+    if authorization and authorization.lower().startswith('bearer '):
+        token = authorization.split(' ', 1)[1].strip()
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            user_id = int(payload['sub'])
+        except Exception:
+            raise HTTPException(status_code=401, detail='Invalid or expired login session.')
+        conn = get_db()
+        user = conn.execute('SELECT id, name, email, created_at FROM users WHERE id=?', (user_id,)).fetchone()
+        conn.close()
+        if not user:
+            raise HTTPException(status_code=401, detail='User account not found.')
+        return dict(user)
+
+    # Guest mode: the website can be used without forcing signup/login.
+    # A stable browser-generated guest id keeps that visitor's workspace data
+    # separate without exposing or requiring an account password.
+    guest_id = (x_guest_id or '').strip()
+    if guest_id:
+        guest_id = re.sub(r'[^A-Za-z0-9_-]', '', guest_id)[:80]
+        if guest_id:
+            guest_email = 'guest-' + hashlib.sha256(guest_id.encode()).hexdigest()[:32] + '@guest.resumeai.local'
+            conn = get_db()
+            row = conn.execute('SELECT id, name, email, created_at FROM users WHERE email=?', (guest_email,)).fetchone()
+            if not row:
+                cur = conn.execute(
+                    'INSERT INTO users(name,email,password_hash,created_at) VALUES(?,?,?,?)',
+                    ('Guest User', guest_email, password_hash.hash(uuid.uuid4().hex), datetime.now(timezone.utc).isoformat()),
+                )
+                conn.commit()
+                row = conn.execute('SELECT id, name, email, created_at FROM users WHERE id=?', (cur.lastrowid,)).fetchone()
+            conn.close()
+            user = dict(row)
+            user['email'] = ''
+            user['is_guest'] = True
+            return user
+
+    raise HTTPException(status_code=401, detail='Authentication required.')
 
 @auth_router.post('/signup')
 def signup(data: SignupRequest):
