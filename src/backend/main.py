@@ -4,6 +4,7 @@ import json
 import os
 import re
 import uuid
+from pathlib import Path
 from typing import Any
 
 import fitz
@@ -25,6 +26,10 @@ except Exception:
 
 import base64
 import time
+import tempfile
+import zipfile
+import subprocess
+import html as html_lib
 from PIL import Image, ImageOps
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
@@ -70,8 +75,15 @@ def init_resume_history_db():
         filename TEXT NOT NULL,
         score INTEGER NOT NULL,
         analysis_json TEXT NOT NULL,
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        resume_text TEXT DEFAULT '',
+        job_id TEXT DEFAULT ''
     )""")
+    cols = {r[1] for r in conn.execute('PRAGMA table_info(resume_analyses)').fetchall()}
+    if 'resume_text' not in cols:
+        conn.execute("ALTER TABLE resume_analyses ADD COLUMN resume_text TEXT DEFAULT ''")
+    if 'job_id' not in cols:
+        conn.execute("ALTER TABLE resume_analyses ADD COLUMN job_id TEXT DEFAULT ''")
     conn.commit()
     conn.close()
 
@@ -85,7 +97,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 
 gemini_client = None
 
-if GEMINI_API_KEY:
+if GEMINI_API_KEY and genai is not None:
     gemini_client = genai.Client(
         api_key=GEMINI_API_KEY
     )
@@ -105,10 +117,9 @@ chat_jobs: dict[str, dict[str, Any]] = {}
 
 class ChatRequest(BaseModel):
     job_id: str
-    message: str = Field(
-        min_length=1,
-        max_length=4000,
-    )
+    message: str = Field(min_length=1, max_length=4000)
+    history: list[dict[str, str]] = Field(default_factory=list, max_length=20)
+    page_context: str = Field(default='resume', max_length=80)
 
 
 class FeedbackSchema(BaseModel):
@@ -157,7 +168,7 @@ def extract_from_pdf(data: bytes) -> str:
 
         ocr_pages = []
         for index, page in enumerate(doc):
-            if index >= 2:
+            if index >= min(len(doc), 4):
                 break
             try:
                 pix = page.get_pixmap(matrix=fitz.Matrix(2.0, 2.0), alpha=False)
@@ -209,6 +220,58 @@ def extract_from_docx(data: bytes) -> str:
     return clean_text(
         "\n".join(parts)
     )
+
+
+
+def extract_from_rtf(data: bytes) -> str:
+    try:
+        from striprtf.striprtf import rtf_to_text
+        return clean_text(rtf_to_text(data.decode("utf-8", errors="ignore")))
+    except Exception:
+        raw = data.decode("utf-8", errors="ignore")
+        raw = re.sub(r"\\'[0-9a-fA-F]{2}", " ", raw)
+        raw = re.sub(r"\\[a-zA-Z]+-?\\d* ?", " ", raw)
+        raw = re.sub(r"[{}]", " ", raw)
+        return clean_text(raw)
+
+
+def extract_from_odt(data: bytes) -> str:
+    try:
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            xml = archive.read("content.xml").decode("utf-8", errors="ignore")
+        xml = re.sub(r"</text:p>|</text:h>|</table:table-cell>|</text:list-item>", "\n", xml)
+        xml = re.sub(r"<[^>]+>", " ", xml)
+        return clean_text(html_lib.unescape(xml))
+    except Exception as exc:
+        raise ValueError("The ODT file could not be read. Please export it as PDF or DOCX and try again.") from exc
+
+
+def extract_from_doc(data: bytes) -> str:
+    # .doc is a legacy binary format. Prefer LibreOffice/antiword when present.
+    with tempfile.TemporaryDirectory() as td:
+        src = os.path.join(td, "resume.doc")
+        with open(src, "wb") as fh:
+            fh.write(data)
+        for command in (["antiword", src], ["catdoc", src]):
+            try:
+                proc = subprocess.run(command, capture_output=True, text=True, timeout=12)
+                if proc.returncode == 0 and proc.stdout.strip():
+                    return clean_text(proc.stdout)
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                pass
+        outdir = os.path.join(td, "out")
+        os.makedirs(outdir, exist_ok=True)
+        try:
+            proc = subprocess.run(
+                ["libreoffice", "--headless", "--convert-to", "txt:Text", "--outdir", outdir, src],
+                capture_output=True, text=True, timeout=20,
+            )
+            txt = os.path.join(outdir, "resume.txt")
+            if proc.returncode == 0 and os.path.exists(txt):
+                return clean_text(Path(txt).read_text(errors="ignore"))
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            pass
+    raise ValueError("Legacy DOC files need a document converter on the server. Please save the resume as PDF or DOCX and upload it again.")
 
 
 def extract_from_image(data: bytes) -> str:
@@ -276,10 +339,20 @@ async def extract_resume_text(
             data,
         )
 
+    if extension == ".doc":
+        return await asyncio.to_thread(extract_from_doc, data)
+
+    if extension == ".rtf":
+        return await asyncio.to_thread(extract_from_rtf, data)
+
+    if extension == ".odt":
+        return await asyncio.to_thread(extract_from_odt, data)
+
     if extension in {
         ".jpg",
         ".jpeg",
         ".png",
+        ".webp",
     }:
 
         return await asyncio.to_thread(
@@ -287,8 +360,11 @@ async def extract_resume_text(
             data,
         )
 
+    if extension == '.txt':
+        return clean_text(data.decode('utf-8', errors='ignore'))
+
     raise ValueError(
-        "Unsupported file format. Please upload PDF, DOCX, JPG or PNG."
+        "Unsupported file format. ResumeAI supports PDF, DOC, DOCX, RTF, ODT, TXT, JPG, JPEG, PNG and WEBP."
     )
 
 
@@ -1984,14 +2060,14 @@ def gemini_generate(
     temperature: float = 0.2,
 ):
 
-    if not gemini_client:
-
+    if gemini_client is None or types is None:
         raise RuntimeError(
-            "Gemini API key is not configured."
+            "Gemini API key is not configured or the google-genai package is unavailable."
         )
 
     # Try current model first, then fallback.
     models = [
+        os.getenv("RESUMEAI_GEMINI_MODEL", "gemini-3.8-flash"),
         "gemini-3.7-flash",
         "gemini-3.5-flash-lite",
     ]
@@ -2232,72 +2308,60 @@ def run_ai_feedback_job(
 # AI CHAT
 # =========================================================
 
+def _chat_history_text(history: list[dict[str, str]]) -> str:
+    cleaned = []
+    for item in history[-12:]:
+        role = str(item.get('role') or '').strip().lower()
+        text = str(item.get('text') or '').strip()
+        if role in {'user', 'assistant'} and text:
+            cleaned.append(f"{role.upper()}: {text[:2500]}")
+    return "\n".join(cleaned)
+
+
 def generate_chat_answer(
     resume_text: str,
     message: str,
+    history: list[dict[str, str]] | None = None,
+    page_context: str = 'resume',
 ) -> str:
-
     if not gemini_client:
+        raise RuntimeError("Gemini API key is not configured.")
 
-        raise RuntimeError(
-            "Gemini API key is not configured."
-        )
-
+    history_text = _chat_history_text(history or []) or "No previous chat messages."
     prompt = f"""
-You are ResumeAI Career Chat.
+You are ResumeAI's persistent AI Career Assistant.
 
-Help a student or job seeker understand and improve their resume.
+You are helping the user across the ResumeAI website. The current page/context is: {page_context}.
+The resume below is the source of truth for resume-related facts.
 
-The user can communicate in:
-English, Hindi or Hinglish.
+IMPORTANT:
+- Remember and use the previous chat turns below. Answer follow-up questions in context.
+- The user may ask in English, Hindi, or Hinglish. Reply naturally in the same language/style.
+- Use the resume for facts about the candidate. Never invent skills, projects, employers, education,
+  certifications, achievements, numbers, job titles, responsibilities or experience.
+- If the resume does not contain the requested fact, say that it is not present/unclear.
+- You may give recommendations, but label them as recommendations rather than facts.
+- If the question is about ResumeAI features (Jobs, Mocks, Dashboard, Settings), explain how the feature
+  should work and use available resume context when relevant. Do not claim an action was completed unless it was.
+- Give a direct answer first, then useful detail. Do not repeat the user's question.
 
-LANGUAGE RULE:
-Reply naturally in the same language style used by the user.
-
-Use ONLY information found in the resume.
-
-Never invent:
-- skills
-- projects
-- employers
-- education
-- certifications
-- achievements
-- numbers
-- experience
-
-If something is not present, clearly say that it is not present.
-
-You may recommend what the user should add.
-
-Give practical, specific answers.
+PREVIOUS CHAT:
+----------------
+{history_text}
+----------------
 
 RESUME:
 ----------------
-{resume_text[:30000]}
+{resume_text[:50000]}
 ----------------
 
-USER QUESTION:
+CURRENT USER MESSAGE:
 {message}
 """
-
-    response = gemini_generate(
-        prompt,
-        temperature=0.3,
-    )
-
-    answer = (
-        response.text.strip()
-        if response.text
-        else ""
-    )
-
+    response = gemini_generate(prompt, temperature=0.25)
+    answer = response.text.strip() if response.text else ''
     if not answer:
-
-        raise RuntimeError(
-            "Gemini returned an empty response."
-        )
-
+        raise RuntimeError('Gemini returned an empty response.')
     return answer
 
 
@@ -2305,47 +2369,20 @@ def run_chatbot_job(
     chat_job_id: str,
     resume_text: str,
     message: str,
+    history: list[dict[str, str]] | None = None,
+    page_context: str = 'resume',
 ):
-
     if chat_job_id not in chat_jobs:
         return
-
-    chat_jobs[chat_job_id]["status"] = (
-        "processing"
-    )
-
+    chat_jobs[chat_job_id]['status'] = 'processing'
     try:
-
-        answer = generate_chat_answer(
-            resume_text,
-            message,
-        )
-
-        chat_jobs[chat_job_id]["status"] = (
-            "completed"
-        )
-
-        chat_jobs[chat_job_id][
-            "chat_answer"
-        ] = answer
-
+        answer = generate_chat_answer(resume_text, message, history, page_context)
+        chat_jobs[chat_job_id]['status'] = 'completed'
+        chat_jobs[chat_job_id]['chat_answer'] = answer
     except Exception as exc:
-
-        print(
-            "Chat error:",
-            repr(exc),
-        )
-
-        chat_jobs[chat_job_id]["status"] = (
-            "failed"
-        )
-
-        chat_jobs[chat_job_id]["message"] = (
-            str(exc)
-        )
-
-
-# =========================================================
+        print('Chat error:', repr(exc))
+        chat_jobs[chat_job_id]['status'] = 'failed'
+        chat_jobs[chat_job_id]['message'] = str(exc)
 # AI PROFESSIONAL RESUME ENHANCER
 # =========================================================
 
@@ -3505,15 +3542,184 @@ def build_professional_pdf(
     return output.read()
 
 
+def _template_resume_parts(resume_text: str):
+    lines = [line.strip() for line in split_resume_lines(resume_text) if line.strip()]
+    name = lines[0] if lines else "Professional Resume"
+    contact = ""
+    start = 1
+    if len(lines) > 1 and (
+        "@" in lines[1]
+        or re.search(r"\d{7,}", lines[1])
+        or "linkedin" in lines[1].lower()
+        or "github" in lines[1].lower()
+        or "|" in lines[1]
+    ):
+        contact = lines[1]
+        start = 2
+
+    sections = []
+    current = None
+    for line in lines[start:]:
+        if is_pdf_section_heading(line):
+            current = {"title": line, "items": []}
+            sections.append(current)
+        elif current is not None:
+            current["items"].append(line)
+        else:
+            if not sections:
+                current = {"title": "Professional Summary", "items": []}
+                sections.append(current)
+            sections[0]["items"].append(line)
+    return name, contact, sections
+
+
+def _template_paragraphs(section, heading_style, body_style, bullet_style):
+    flow = [Paragraph(escape_pdf_text(section["title"].upper()), heading_style)]
+    for item in section["items"]:
+        if is_bullet_line(item):
+            flow.append(Paragraph("• " + escape_pdf_text(remove_bullet_marker(item)), bullet_style))
+        else:
+            flow.append(Paragraph(escape_pdf_text(item), body_style))
+    return flow
+
+
+def build_template_pdf(
+    resume_text: str,
+    photo_data: bytes | None,
+    template: str,
+) -> bytes:
+    name, contact, sections = _template_resume_parts(resume_text)
+    output = io.BytesIO()
+
+    document = SimpleDocTemplate(
+        output, pagesize=A4,
+        rightMargin=0.45 * inch, leftMargin=0.45 * inch,
+        topMargin=0.42 * inch, bottomMargin=0.45 * inch,
+        title=f"ResumeAI {template.title()} Resume", author="ResumeAI"
+    )
+    styles = getSampleStyleSheet()
+
+    if template == "executive":
+        return _build_executive_pdf(document, output, name, contact, sections, photo_data, styles)
+    if template == "modern":
+        return _build_modern_pdf(document, output, name, contact, sections, photo_data, styles)
+    return _build_minimal_pdf(document, output, name, contact, sections, photo_data, styles)
+
+
+def _photo_flowable(photo_data, size=0.78):
+    if not photo_data:
+        return Spacer(size * inch, size * inch)
+    try:
+        stream = prepare_profile_photo(photo_data)
+        return ReportLabImage(stream, width=size * inch, height=size * inch, kind="proportional")
+    except Exception:
+        return Spacer(size * inch, size * inch)
+
+
+def _build_executive_pdf(document, output, name, contact, sections, photo_data, styles):
+    navy = colors.HexColor("#173B72")
+    light = colors.HexColor("#EAF2F8")
+    white = colors.white
+    name_style = ParagraphStyle("ExecName", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=23, leading=25, textColor=white)
+    contact_style = ParagraphStyle("ExecContact", parent=styles["Normal"], fontName="Helvetica", fontSize=8, leading=10, textColor=colors.HexColor("#E5EEF8"))
+    side_head = ParagraphStyle("ExecSideHead", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=9, leading=11, textColor=navy, spaceBefore=5, spaceAfter=4)
+    head = ParagraphStyle("ExecHead", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=10.5, leading=12, textColor=navy, spaceBefore=6, spaceAfter=4)
+    body = ParagraphStyle("ExecBody", parent=styles["Normal"], fontName="Helvetica", fontSize=8.6, leading=11.5, textColor=colors.HexColor("#2D3748"), spaceAfter=3)
+    bullet = ParagraphStyle("ExecBullet", parent=body, leftIndent=10, firstLineIndent=-6)
+
+    left_names = {"skills", "technical skills", "languages", "certifications", "achievements", "awards", "interests"}
+    left_sections = [s for s in sections if s["title"].lower().rstrip(":") in left_names]
+    right_sections = [s for s in sections if s not in left_sections]
+
+    header_left = [Paragraph(escape_pdf_text(name.upper()), name_style)]
+    if contact:
+        header_left.append(Paragraph(escape_pdf_text(contact), contact_style))
+    header_cell = [header_left, _photo_flowable(photo_data, 0.78)]
+    header = Table([header_cell], colWidths=[6.45 * inch, 0.8 * inch], rowHeights=[0.88 * inch])
+    header.setStyle(TableStyle([("BACKGROUND", (0,0), (-1,-1), navy), ("VALIGN", (0,0), (-1,-1), "MIDDLE"), ("LEFTPADDING",(0,0),(0,0),14), ("RIGHTPADDING",(-1,0),(-1,0),12), ("TOPPADDING",(0,0),(-1,-1),8), ("BOTTOMPADDING",(0,0),(-1,-1),8)]))
+
+    story=[header, Spacer(1, 0.10*inch)]
+    left_flow=[]
+    for sec in left_sections:
+        left_flow.extend(_template_paragraphs(sec, side_head, body, bullet))
+        left_flow.append(Spacer(1, 0.04*inch))
+    right_flow=[]
+    for sec in right_sections:
+        right_flow.extend(_template_paragraphs(sec, head, body, bullet))
+        right_flow.append(Spacer(1, 0.03*inch))
+    if not left_flow:
+        left_flow=[Paragraph("SKILLS", side_head), Paragraph("See the sections on the right for the full resume content.", body)]
+
+    body_table=Table([[left_flow, right_flow]], colWidths=[1.85*inch, 5.4*inch], repeatRows=0)
+    body_table.setStyle(TableStyle([("BACKGROUND",(0,0),(0,0),light),("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(0,0),12),("RIGHTPADDING",(0,0),(0,0),10),("LEFTPADDING",(1,0),(1,0),15),("RIGHTPADDING",(1,0),(1,0),8),("TOPPADDING",(0,0),(-1,-1),10),("BOTTOMPADDING",(0,0),(-1,-1),8)]))
+    story.append(body_table)
+
+    def footer(canvas, doc):
+        canvas.saveState(); canvas.setFont("Helvetica",7); canvas.setFillColor(colors.HexColor("#7A8797")); canvas.drawCentredString(A4[0]/2,0.22*inch,"ResumeAI • Executive Two-Column"); canvas.restoreState()
+    document.build(story, onFirstPage=footer, onLaterPages=footer)
+    output.seek(0); return output.read()
+
+
+def _build_modern_pdf(document, output, name, contact, sections, photo_data, styles):
+    purple=colors.HexColor("#5B35D5"); pale=colors.HexColor("#F1EEFF")
+    name_style=ParagraphStyle("ModName",parent=styles["Normal"],fontName="Helvetica-Bold",fontSize=21,leading=23,textColor=colors.HexColor("#182038"))
+    contact_style=ParagraphStyle("ModContact",parent=styles["Normal"],fontName="Helvetica",fontSize=8,leading=10,textColor=colors.HexColor("#667085"))
+    head=ParagraphStyle("ModHead",parent=styles["Normal"],fontName="Helvetica-Bold",fontSize=10,leading=12,textColor=purple,spaceBefore=5,spaceAfter=4)
+    body=ParagraphStyle("ModBody",parent=styles["Normal"],fontName="Helvetica",fontSize=8.7,leading=11.7,textColor=colors.HexColor("#26324A"),spaceAfter=3)
+    bullet=ParagraphStyle("ModBullet",parent=body,leftIndent=10,firstLineIndent=-6)
+    left_names={"skills","technical skills","languages","certifications","achievements","awards","interests"}
+    left=[s for s in sections if s["title"].lower().rstrip(":") in left_names]; right=[s for s in sections if s not in left]
+    left_flow=[Paragraph(escape_pdf_text(name.upper()), ParagraphStyle("SideName",parent=styles["Normal"],fontName="Helvetica-Bold",fontSize=14,textColor=colors.white,leading=16))]
+    if contact: left_flow.append(Paragraph(escape_pdf_text(contact), ParagraphStyle("SideContact",parent=styles["Normal"],fontName="Helvetica",fontSize=7.2,textColor=colors.HexColor("#EDE9FF"),leading=9)))
+    left_flow.append(Spacer(1,0.12*inch))
+    for sec in left:
+        left_flow.extend(_template_paragraphs(sec, ParagraphStyle("SideHead2",parent=head,textColor=colors.white,spaceBefore=6), ParagraphStyle("SideBody2",parent=body,textColor=colors.HexColor("#E8E5F7")), ParagraphStyle("SideBullet2",parent=bullet,textColor=colors.HexColor("#E8E5F7"))))
+    if not left:
+        left_flow.append(Paragraph("SKILLS", ParagraphStyle("SideHead3",parent=head,textColor=colors.white)))
+    right_flow=[]
+    for sec in right:
+        right_flow.extend(_template_paragraphs(sec,head,body,bullet)); right_flow.append(Spacer(1,0.03*inch))
+    header_table=Table([[left_flow,right_flow]],colWidths=[2.15*inch,5.1*inch])
+    header_table.setStyle(TableStyle([("BACKGROUND",(0,0),(0,0),purple),("BACKGROUND",(1,0),(1,0),colors.white),("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(0,0),14),("RIGHTPADDING",(0,0),(0,0),12),("LEFTPADDING",(1,0),(1,0),18),("RIGHTPADDING",(1,0),(1,0),8),("TOPPADDING",(0,0),(-1,-1),14),("BOTTOMPADDING",(0,0),(-1,-1),12)]))
+    story=[header_table]
+    def footer(canvas,doc):
+        canvas.saveState(); canvas.setFont("Helvetica",7); canvas.setFillColor(colors.HexColor("#8B94A6")); canvas.drawCentredString(A4[0]/2,0.22*inch,"ResumeAI • Modern Sidebar"); canvas.restoreState()
+    document.build(story,onFirstPage=footer,onLaterPages=footer); output.seek(0); return output.read()
+
+
+def _build_minimal_pdf(document, output, name, contact, sections, photo_data, styles):
+    black=colors.HexColor("#111827"); gray=colors.HexColor("#667085")
+    name_style=ParagraphStyle("MinName",parent=styles["Normal"],fontName="Helvetica-Bold",fontSize=24,leading=26,textColor=black,spaceAfter=4)
+    contact_style=ParagraphStyle("MinContact",parent=styles["Normal"],fontName="Helvetica",fontSize=8,leading=10,textColor=gray,spaceAfter=8)
+    head=ParagraphStyle("MinHead",parent=styles["Normal"],fontName="Helvetica-Bold",fontSize=10,leading=12,textColor=black,spaceBefore=10,spaceAfter=4)
+    body=ParagraphStyle("MinBody",parent=styles["Normal"],fontName="Helvetica",fontSize=8.8,leading=12,textColor=colors.HexColor("#374151"),spaceAfter=3)
+    bullet=ParagraphStyle("MinBullet",parent=body,leftIndent=11,firstLineIndent=-7)
+    header=[]
+    if photo_data:
+        photo=_photo_flowable(photo_data,0.72); header=Table([[[Paragraph(escape_pdf_text(name),name_style),Paragraph(escape_pdf_text(contact),contact_style)],photo]],colWidths=[6.35*inch,0.72*inch])
+        header.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("ALIGN",(1,0),(1,0),"RIGHT"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    else:
+        header=[Paragraph(escape_pdf_text(name),name_style)]
+        if contact: header.append(Paragraph(escape_pdf_text(contact),contact_style))
+    story=[header,HRFlowable(width="100%",thickness=0.8,color=black,spaceBefore=1,spaceAfter=4)]
+    for sec in sections:
+        story.extend(_template_paragraphs(sec,head,body,bullet)); story.append(Spacer(1,0.02*inch))
+    def footer(canvas,doc):
+        canvas.saveState(); canvas.setFont("Helvetica",7); canvas.setFillColor(gray); canvas.drawCentredString(A4[0]/2,0.22*inch,"ResumeAI • Minimal ATS"); canvas.restoreState()
+    document.build(story,onFirstPage=footer,onLaterPages=footer); output.seek(0); return output.read()
+
+
 def build_final_resume_pdf(
     resume_text: str,
     photo_data: bytes | None = None,
+    template: str = "professional",
 ) -> bytes:
-
-    return build_professional_pdf(
-        resume_text,
-        photo_data,
-    )
+    template = (template or "professional").lower().strip()
+    if template == "professional":
+        return build_professional_pdf(resume_text, photo_data)
+    if template in {"executive", "modern", "minimal"}:
+        return build_template_pdf(resume_text, photo_data, template)
+    return build_professional_pdf(resume_text, photo_data)
 
 
 # =========================================================
@@ -3544,10 +3750,15 @@ async def analyze_resume(
 
     allowed = {
         ".pdf",
+        ".doc",
         ".docx",
+        ".rtf",
+        ".odt",
         ".jpg",
         ".jpeg",
         ".png",
+        ".webp",
+        ".txt",
     }
 
     extension = os.path.splitext(
@@ -3559,7 +3770,7 @@ async def analyze_resume(
         return {
             "success": False,
             "message": (
-                "Only PDF, DOCX, JPG and PNG resume files are supported."
+                "PDF, DOC, DOCX, RTF, ODT, JPG, JPEG, PNG, WEBP and TXT resume files are supported."
             ),
         }
 
@@ -3598,7 +3809,7 @@ async def analyze_resume(
             return {
                 "success": False,
                 "message": (
-                    "This file does not appear to be a resume. Please upload a valid resume in PDF, DOCX, JPG or PNG format."
+                    "This file does not appear to be a resume. Please upload a valid resume in PDF, DOC, DOCX, RTF, ODT, JPG, JPEG, PNG, WEBP or TXT format."
                 ),
             }
 
@@ -3606,25 +3817,29 @@ async def analyze_resume(
             text
         )
 
+        job_id = str(uuid.uuid4())
+
         conn = get_db()
         try:
             conn.execute(
-                "INSERT INTO resume_analyses(user_id, filename, score, analysis_json, created_at) VALUES(?,?,?,?,?)",
+                "INSERT INTO resume_analyses(user_id, filename, score, analysis_json, created_at, resume_text, job_id) VALUES(?,?,?,?,?,?,?)",
                 (
                     user['id'],
                     filename,
                     int(analysis.get('score', 0)),
                     json.dumps(analysis, ensure_ascii=False),
                     __import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat(),
+                    text,
+                    job_id,
                 ),
             )
+            try:
+                conn.execute('INSERT INTO notification_events(user_id,title,body,kind,created_at) VALUES(?,?,?,?,?)', (user['id'], 'Resume analyzed', f"{filename} was analyzed with a score of {int(analysis.get('score', 0))}/100.", 'resume', __import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat()))
+            except Exception:
+                pass
             conn.commit()
         finally:
             conn.close()
-
-        job_id = str(
-            uuid.uuid4()
-        )
 
         ai_jobs[job_id] = {
             "status": "queued",
@@ -3672,7 +3887,7 @@ async def analyze_resume(
         return {
             "success": False,
             "message": (
-                "We could not process this resume. Please try another clear PDF, DOCX, JPG or PNG resume."
+                "We could not process this resume. Please try another clear PDF, DOC, DOCX, RTF, ODT, JPG, JPEG, PNG, WEBP or TXT resume."
             ),
         }
 
@@ -3721,76 +3936,39 @@ def get_ai_feedback(
 # =========================================================
 
 @app.post("/chat")
-async def start_chat(
-    request: ChatRequest,
-):
+async def start_chat(request: ChatRequest, user=Depends(get_current_user)):
+    resume_job_id = request.job_id.strip()
+    job = ai_jobs.get(resume_job_id) or {}
+    resume_text = job.get('resume_text') or ''
 
-    resume_job_id = (
-        request.job_id
-    )
-
-    job = ai_jobs.get(
-        resume_job_id
-    )
-
-    if not job:
-
-        return {
-            "success": False,
-            "message": (
-                "Resume analysis not found. Please analyze the resume again."
-            ),
-        }
-
-    resume_text = job.get(
-        "resume_text"
-    )
+    # Survive page refreshes/backend restarts by reading the persisted resume.
+    if not resume_text:
+        conn = get_db()
+        row = conn.execute(
+            'SELECT resume_text FROM resume_analyses WHERE job_id=? AND user_id=? ORDER BY id DESC LIMIT 1',
+            (resume_job_id, user['id']),
+        ).fetchone()
+        conn.close()
+        resume_text = row['resume_text'] if row else ''
 
     if not resume_text:
-
-        return {
-            "success": False,
-            "message": (
-                "Resume text is unavailable. Please analyze the resume again."
-            ),
-        }
+        return {'success': False, 'message': 'Resume analysis not found. Please analyze the resume again.'}
 
     message = request.message.strip()
-
     if not message:
+        return {'success': False, 'message': 'Please enter a question.'}
 
-        return {
-            "success": False,
-            "message": (
-                "Please enter a question."
-            ),
-        }
-
-    chat_job_id = str(
-        uuid.uuid4()
-    )
-
-    chat_jobs[chat_job_id] = {
-        "status": "queued",
-        "chat_answer": None,
-        "message": None,
-    }
-
-    asyncio.create_task(
-        asyncio.to_thread(
-            run_chatbot_job,
-            chat_job_id,
-            resume_text,
-            message,
-        )
-    )
-
-    return {
-        "success": True,
-        "chat_job_id": chat_job_id,
-        "status": "queued",
-    }
-    # =========================================================
+    chat_job_id = str(uuid.uuid4())
+    chat_jobs[chat_job_id] = {'status': 'queued', 'chat_answer': None, 'message': None}
+    asyncio.create_task(asyncio.to_thread(
+        run_chatbot_job,
+        chat_job_id,
+        resume_text,
+        message,
+        request.history,
+        request.page_context,
+    ))
+    return {'success': True, 'chat_job_id': chat_job_id, 'status': 'queued'}
 # CHAT STATUS
 # =========================================================
 
@@ -4011,6 +4189,9 @@ async def enhance_resume(
                 original_score
             )
 
+        # Keep the enhanced text available for instant template switching.
+        ai_jobs.setdefault(job_id, {})["enhanced_text"] = enhanced_text
+
         # -------------------------------------------------
         # PHOTO
         # -------------------------------------------------
@@ -4100,6 +4281,8 @@ async def enhance_resume(
                         "user_uploaded"
                     )
 
+        ai_jobs.setdefault(job_id, {})["photo_data"] = photo_data
+
         # -------------------------------------------------
         # BUILD PDF
         # -------------------------------------------------
@@ -4109,6 +4292,7 @@ async def enhance_resume(
                 build_final_resume_pdf,
                 enhanced_text,
                 photo_data,
+                "professional",
             )
         )
 
@@ -4165,6 +4349,46 @@ async def enhance_resume(
                 "Professional resume generation failed. Please try again."
             ),
         }
+
+
+# =========================================================
+# ENHANCE RESUME TEMPLATE SWITCHER
+# =========================================================
+
+@app.post("/enhance-template")
+async def enhance_resume_template(
+    job_id: str = Form(...),
+    template: str = Form("professional"),
+    enhanced_text: str = Form(""),
+):
+    allowed_templates = {"professional", "executive", "modern", "minimal"}
+    template = (template or "professional").strip().lower()
+    if template not in allowed_templates:
+        return {"success": False, "message": "Unknown resume template."}
+
+    job = ai_jobs.get(job_id) or {}
+    text = (enhanced_text or job.get("enhanced_text") or "").strip()
+    if not text:
+        return {"success": False, "message": "Enhanced resume is not available. Please enhance the resume again."}
+
+    photo_data = job.get("photo_data")
+
+    try:
+        pdf_bytes = await asyncio.to_thread(
+            build_final_resume_pdf,
+            text,
+            photo_data,
+            template,
+        )
+        return {
+            "success": True,
+            "pdf_base64": base64.b64encode(pdf_bytes).decode("ascii"),
+            "filename": f"ResumeAI-{template}-Resume.pdf",
+            "template": template,
+        }
+    except Exception as exc:
+        print("Template generation error:", repr(exc))
+        return {"success": False, "message": "Could not generate the selected resume style."}
 
 
 # =========================================================

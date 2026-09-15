@@ -1,4 +1,4 @@
-import os, sqlite3, re, hashlib, uuid, smtplib, ssl, threading
+import os, sqlite3, urllib.parse, re, hashlib, uuid, smtplib, ssl, threading, secrets
 from email.message import EmailMessage
 from datetime import datetime, timedelta, timezone
 import jwt
@@ -6,11 +6,58 @@ from pwdlib import PasswordHash
 from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel, Field
 
+try:
+    from authlib.integrations.starlette_client import OAuth
+except Exception:
+    OAuth = None
+
+
 DB_PATH = os.getenv('RESUMEAI_DB_PATH', os.path.join(os.path.dirname(__file__), 'resumeai.db'))
 SECRET_KEY = os.getenv('AUTH_SECRET_KEY', 'resumeai-development-secret-change-later')
 ALGORITHM = 'HS256'
 TOKEN_EXPIRE_MINUTES = 60 * 24 * 7
 password_hash = PasswordHash.recommended()
+FRONTEND_URL = os.getenv('RESUMEAI_FRONTEND_URL', 'http://localhost:5173').rstrip('/')
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '').strip()
+GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET', '').strip()
+GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', '').strip() or 'http://localhost:8000/auth/google/callback'
+
+oauth = OAuth() if OAuth else None
+if oauth and GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET:
+    oauth.register(
+        name='google',
+        client_id=GOOGLE_CLIENT_ID,
+        client_secret=GOOGLE_CLIENT_SECRET,
+        server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+        client_kwargs={'scope': 'openid email profile'},
+    )
+
+
+def _send_security_login_email(to_email: str, name: str, method: str = 'Email and password'):
+    host = os.getenv('RESUMEAI_SMTP_HOST', 'smtp.gmail.com').strip()
+    try: port = int(os.getenv('RESUMEAI_SMTP_PORT', '465'))
+    except Exception: port = 465
+    username = os.getenv('RESUMEAI_SMTP_USER', '').strip()
+    password = os.getenv('RESUMEAI_SMTP_PASSWORD', '').strip()
+    sender = os.getenv('RESUMEAI_SMTP_FROM', username).strip()
+    if not to_email or not username or not password or not sender:
+        return False
+    try:
+        msg = EmailMessage()
+        msg['Subject'] = 'ResumeAI security alert — new sign-in'
+        msg['From'] = sender
+        msg['To'] = to_email
+        msg.set_content(
+            f"Hi {name},\n\nA new sign-in to your ResumeAI account was completed.\n\nSign-in method: {method}\nTime (UTC): {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}\n\nIf this was not you, change your ResumeAI password and review your account security settings.\n\n— ResumeAI"
+        )
+        with smtplib.SMTP_SSL(host, port, context=ssl.create_default_context(), timeout=12) as server:
+            server.login(username, password)
+            server.send_message(msg)
+        return True
+    except Exception as exc:
+        print('ResumeAI login security email error:', repr(exc))
+        return False
+
 
 def _send_welcome_email(to_email: str, name: str):
     host = os.getenv('RESUMEAI_SMTP_HOST', 'smtp.gmail.com').strip()
@@ -144,8 +191,50 @@ def login(data: LoginRequest):
     if not user or not password_hash.verify(data.password, user['password_hash']):
         raise HTTPException(status_code=401, detail='Incorrect email or password.')
     token = create_access_token(user['id'], user['email'])
+    threading.Thread(target=_send_security_login_email, args=(user['email'], user['name'], 'Email and password'), daemon=True).start()
     return {'success': True, 'message': 'Login successful.', 'access_token': token, 'token_type': 'bearer',
             'user': {'id': user['id'], 'name': user['name'], 'email': user['email']}}
+
+@auth_router.get('/google/start')
+async def google_start(request: __import__('fastapi').Request):
+    if not oauth or not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+        raise HTTPException(503, 'Google login is not configured yet. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to the backend environment.')
+    redirect_uri = GOOGLE_REDIRECT_URI
+    return await oauth.google.authorize_redirect(request, redirect_uri)
+
+
+@auth_router.get('/google/callback')
+async def google_callback(request: __import__('fastapi').Request):
+    if not oauth:
+        raise HTTPException(503, 'Google login is not configured.')
+    try:
+        token = await oauth.google.authorize_access_token(request)
+        userinfo = token.get('userinfo')
+        if not userinfo:
+            userinfo = await oauth.google.userinfo(token=token)
+        email = str(userinfo.get('email') or '').strip().lower()
+        name = str(userinfo.get('name') or userinfo.get('given_name') or 'Google User').strip()
+        if not email:
+            raise HTTPException(400, 'Google did not return an email address.')
+        conn=get_db(); row=conn.execute('SELECT id,name,email FROM users WHERE email=?',(email,)).fetchone()
+        if not row:
+            cur=conn.execute('INSERT INTO users(name,email,password_hash,created_at) VALUES(?,?,?,?)',(name,email,password_hash.hash(secrets.token_urlsafe(24)),datetime.now(timezone.utc).isoformat()))
+            user_id=cur.lastrowid; conn.commit()
+        else:
+            user_id=row['id']
+            conn.execute('UPDATE users SET name=? WHERE id=?',(name,user_id)); conn.commit()
+        conn.close()
+        access_token=create_access_token(user_id,email)
+        threading.Thread(target=_send_security_login_email, args=(email, name, 'Google'), daemon=True).start()
+        from starlette.responses import RedirectResponse
+        return RedirectResponse(f"{FRONTEND_URL}/?google_token={urllib.parse.quote(access_token)}")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        print('Google OAuth error:', repr(exc))
+        from starlette.responses import RedirectResponse
+        return RedirectResponse(f"{FRONTEND_URL}/?google_error=Google%20login%20could%20not%20be%20completed")
+
 
 @auth_router.get('/health')
 def auth_health(): return {'success': True, 'message': 'Authentication system is working.'}

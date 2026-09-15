@@ -1387,3 +1387,556 @@ html.resumeai-dark body{background:#0b1220;color:#e7eef8}html.resumeai-dark .wor
 
 /* Final functional polish: mock interview controls */
 .mock-live-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.mock-exit-btn{border:1px solid #e4cfd2;background:#fff7f7;color:#a23a45;border-radius:9px;padding:8px 10px;font-size:10px;font-weight:800;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease}.mock-exit-btn:hover{transform:translateY(-1px);box-shadow:0 7px 16px rgba(162,58,69,.12)}html.resumeai-dark .mock-exit-btn{background:#25151a;border-color:#5a3038;color:#ffb6be}
+
+
+/* ResumeAI functional polish: Jobs filters + readable cards + dashboard search */
+.jobs-module-pro{overflow:visible!important}
+.jobs-header-pro{align-items:flex-end}
+.jobs-match-note{margin:7px 0 0!important;max-width:650px;color:#718096!important;font-size:11px!important;line-height:1.55!important}
+.jobs-filter-panel{display:grid;grid-template-columns:1.35fr repeat(4,minmax(135px,1fr)) auto auto;gap:10px;align-items:center;padding:16px;margin:8px 0 22px;border:1px solid #dfe8f3;border-radius:16px;background:#f7faff;overflow:visible;position:relative;z-index:10}
+.jobs-filter-title{display:flex;gap:10px;align-items:center;min-width:180px}.jobs-filter-title>span{width:34px;height:34px;border-radius:10px;background:#eaf2ff;display:grid;place-items:center}.jobs-filter-title strong{display:block;color:#29435f;font-size:11px}.jobs-filter-title small{display:block;color:#7d8da0;font-size:8px;margin-top:3px}
+.jobs-filter-panel select,.jobs-filter-panel button{min-width:0;height:40px;border:1px solid #d8e3ed;border-radius:10px;background:#fff;color:#29435f;padding:0 11px;font-size:9px;font-weight:750;outline:none;box-sizing:border-box}
+.jobs-filter-panel select{appearance:auto;-webkit-appearance:auto}.jobs-filter-panel select:focus{border-color:#6b3fe8;box-shadow:0 0 0 3px rgba(107,63,232,.08)}
+.jobs-apply-filter{background:#6337e9!important;color:#fff!important;border-color:#6337e9!important}.jobs-clear-filter{background:#fff!important;color:#5c6c80!important}
+.job-grid{align-items:stretch!important}.job-card{min-height:205px!important;height:auto!important;box-sizing:border-box;overflow:hidden}.job-card h3,.job-company,.job-location{color:#26364e!important}.job-card h3{line-height:1.35!important}.job-match-pill{font-size:9px;font-weight:900;color:#166b49;background:#e9f8ef;padding:7px 9px;border-radius:20px;white-space:nowrap}
+.dashboard-search input{background:#fff!important;color:#24344d!important}.dashboard-search input::placeholder{color:#8b97a8!important}
+@media(max-width:1150px){.jobs-filter-panel{grid-template-columns:1fr 1fr 1fr}.jobs-filter-title{grid-column:1/-1}}
+@media(max-width:700px){.jobs-filter-panel{grid-template-columns:1fr}.jobs-filter-title{grid-column:auto}.job-grid{grid-template-columns:1fr!important}.jobs-header-pro{align-items:stretch}}
+html.resumeai-dark .jobs-filter-panel{background:#102036;border-color:#29415e}html.resumeai-dark .jobs-filter-title strong{color:#e5eef8}html.resumeai-dark .jobs-filter-title small{color:#93a7bd}html.resumeai-dark .jobs-filter-panel select,html.resumeai-dark .jobs-filter-panel button{background:#0d192a;color:#e4edf7;border-color:#2a425e}html.resumeai-dark .job-card{background:#111d30!important;border-color:#2b405a}html.resumeai-dark .job-card h3,html.resumeai-dark .job-company{color:#e6eef8!important}html.resumeai-dark .job-location{color:#9eb0c5!important}
+
+/* ResumeAI Neon theme */
+html.resumeai-neon body{background:#050816}
+html.resumeai-neon .workspace-shell{background:radial-gradient(circle at 15% 10%,rgba(0,234,255,.08),transparent 28%),radial-gradient(circle at 85% 20%,rgba(153,70,255,.10),transparent 30%),#050816}
+html.resumeai-neon .workspace-topbar,html.resumeai-neon .workspace-sidebar{background:rgba(7,12,30,.94);border-color:#24345d;box-shadow:0 0 24px rgba(0,220,255,.06)}
+html.resumeai-neon .workspace-brand b,html.resumeai-neon .workspace-welcome h1,html.resumeai-neon .workspace-stat strong,html.resumeai-neon .workspace-card-title,html.resumeai-neon .workspace-score-body h2,html.resumeai-neon .workspace-full-card h2{color:#f3f8ff}
+html.resumeai-neon .workspace-brand b span,html.resumeai-neon .workspace-eyebrow,html.resumeai-neon .eyebrow{color:#5cf5ff}
+html.resumeai-neon .workspace-topnav button,html.resumeai-neon .workspace-sidebar>button{color:#a9b9d7}
+html.resumeai-neon .workspace-topnav button:hover,html.resumeai-neon .workspace-topnav button.active,html.resumeai-neon .workspace-sidebar>button:hover,html.resumeai-neon .workspace-sidebar>button.active{background:rgba(0,225,255,.10);color:#67f7ff;box-shadow:inset 0 0 0 1px rgba(0,225,255,.16)}
+html.resumeai-neon .workspace-account{background:#0b1430;border-color:#2a3c69;color:#eaf4ff}
+html.resumeai-neon .workspace-account-menu,html.resumeai-neon .workspace-account-menu button{background:#0b1430;border-color:#2a3c69;color:#dceaff}
+html.resumeai-neon .workspace-card,html.resumeai-neon .workspace-stat{background:rgba(10,18,42,.92);border-color:#263b68;box-shadow:0 0 26px rgba(91,76,255,.08)}
+html.resumeai-neon .workspace-score-ring{background:#081127;border-color:#50efff;box-shadow:0 0 0 6px rgba(0,229,255,.10),0 0 32px rgba(0,229,255,.15)}
+html.resumeai-neon .workspace-primary{background:linear-gradient(135deg,#00d9ff,#7548ff);box-shadow:0 0 24px rgba(0,217,255,.18)}
+html.resumeai-neon .professional-module,html.resumeai-neon .application-panel,html.resumeai-neon .settings-content-card,html.resumeai-neon .settings-nav-card{background:linear-gradient(180deg,rgba(10,19,44,.96),rgba(7,13,31,.96));border-color:#273c68;color:#dfeaff}
+html.resumeai-neon .mock-ai-hero,html.resumeai-neon .profile-hero-pro,html.resumeai-neon .premium-hero-live{background:linear-gradient(135deg,rgba(10,35,58,.95),rgba(31,15,62,.95));border-color:#2e5d8c}
+html.resumeai-neon .settings-pane,html.resumeai-neon .settings-row-pro,html.resumeai-neon .settings-select-card,html.resumeai-neon .settings-voice-card,html.resumeai-neon .security-panel,html.resumeai-neon .security-lock-card,html.resumeai-neon .theme-choice{background:#0b1733;border-color:#29446f;color:#e2edff}
+html.resumeai-neon .settings-pane-head h3,html.resumeai-neon .settings-row-pro h3,html.resumeai-neon .settings-select-card span,html.resumeai-neon .settings-voice-card strong{color:#edf6ff}
+html.resumeai-neon .settings-pane-head p,html.resumeai-neon .settings-row-pro p,html.resumeai-neon .settings-select-card small,html.resumeai-neon .settings-voice-card small{color:#91a8c8}
+html.resumeai-neon .settings-select-card select,html.resumeai-neon .settings-voice-card select,html.resumeai-neon .security-pin-input{background:#071126;color:#eef7ff;border-color:#2d4a77}
+html.resumeai-neon .settings-nav-item strong{color:#e8f2ff}html.resumeai-neon .settings-nav-item small{color:#91a8c8}
+
+.google-login-btn{width:100%;border:1px solid #d9dee8;background:#fff;color:#24344d;border-radius:10px;padding:11px 14px;font-size:11px;font-weight:800;cursor:pointer}.google-login-btn:hover{background:#f7f9fc;border-color:#b9c2d2}
+.voice-preview-setting{border:1px solid #cfe0ee;background:#fff;color:#2f6f9f;border-radius:9px;padding:9px 11px;font-size:9px;font-weight:850;cursor:pointer}.voice-preview-setting:hover{transform:translateY(-1px)}
+.security-lock-card{margin-top:14px;padding:16px;border:1px solid #dce7f0;border-radius:14px;background:#f9fbfd}.security-pin-input{margin-top:12px;width:100%;box-sizing:border-box;border:1px solid #d8e3ed;border-radius:9px;padding:11px;background:#fff;color:#24344d;outline:none}.security-pin-input:focus{border-color:#6337e9;box-shadow:0 0 0 3px rgba(99,55,233,.08)}.auto-save-live{padding:4px 8px;border-radius:999px;background:#e9f8ef;color:#16824b;font-size:8px;font-weight:900;letter-spacing:.08em}
+.site-lock-screen{min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at 50% 20%,#eef4ff,#f7f8fb 50%,#eef0f6);padding:24px;box-sizing:border-box}.site-lock-card{width:min(420px,92vw);background:#fff;border:1px solid #e2e7ef;border-radius:22px;padding:34px;box-shadow:0 25px 70px rgba(25,35,65,.16);text-align:center}.site-lock-icon{font-size:42px;margin-bottom:10px}.site-lock-card h1{margin:7px 0;color:#182038}.site-lock-card p{color:#727c90;font-size:12px;line-height:1.6}.site-lock-card input{width:100%;box-sizing:border-box;border:1px solid #dce2eb;border-radius:10px;padding:13px;text-align:center;letter-spacing:.35em;margin:12px 0;font-size:18px;outline:none}.site-lock-card button{width:100%}.lock-error{color:#c53f4a!important;font-weight:700}
+html.resumeai-dark .google-login-btn,html.resumeai-neon .google-login-btn{background:#0d192a;color:#e7f0fa;border-color:#2a425e}html.resumeai-dark .voice-preview-setting,html.resumeai-neon .voice-preview-setting{background:#122036;color:#c9e0f7;border-color:#2b4663}
+html.resumeai-dark .security-lock-card,html.resumeai-neon .security-lock-card{background:#0d192a;border-color:#2a425e}html.resumeai-dark .security-pin-input,html.resumeai-neon .security-pin-input{background:#071126;color:#e7f0fa;border-color:#2a425e}
+html.resumeai-dark .site-lock-screen,html.resumeai-neon .site-lock-screen{background:#050816}.resumeai-neon .site-lock-card{background:#0c1732;border-color:#29446f;color:#e7f2ff;box-shadow:0 0 50px rgba(0,225,255,.12)}.resumeai-neon .site-lock-card h1{color:#f3f8ff}.resumeai-neon .site-lock-card p{color:#98acd0}.resumeai-neon .site-lock-card input{background:#071126;color:#fff;border-color:#2d4a77}
+@media(max-width:700px){.settings-voice-card{grid-template-columns:1fr auto}.voice-preview-setting{grid-column:1/-1;width:100%}}
+.workspace-notification-wrap{position:relative}.workspace-notification-btn{position:relative;width:38px;height:38px;border:1px solid #e1e4eb;background:#fff;border-radius:11px;cursor:pointer}.workspace-notification-btn i{position:absolute;right:-4px;top:-5px;min-width:16px;height:16px;padding:0 3px;border-radius:999px;background:#e54855;color:#fff;font-style:normal;font-size:8px;font-weight:900;display:grid;place-items:center}.workspace-notification-menu{position:absolute;right:0;top:46px;width:330px;max-height:420px;overflow:auto;background:#fff;border:1px solid #e3e7ef;border-radius:14px;box-shadow:0 18px 45px rgba(25,35,65,.16);z-index:60;padding:8px}.notification-menu-head{display:flex;justify-content:space-between;align-items:center;padding:8px 8px 10px;border-bottom:1px solid #edf0f4;color:#24344d;font-size:11px}.notification-menu-head button{border:0;background:none;color:#6337e9;font-size:9px;font-weight:800;cursor:pointer}.notification-item{width:100%;border:0;border-radius:10px;background:#fff;text-align:left;padding:10px;margin-top:5px;display:grid;gap:4px;cursor:pointer}.notification-item.unread{background:#f5f1ff}.notification-item:hover{background:#f2f6fb}.notification-item strong{color:#24344d;font-size:10px}.notification-item span{color:#6f7d90;font-size:9px;line-height:1.45}.notification-item small{color:#9aa5b5;font-size:8px}.notification-empty{text-align:center;color:#8a95a5;padding:28px 10px;font-size:10px}
+html.resumeai-dark .workspace-notification-btn,html.resumeai-neon .workspace-notification-btn{background:#0d192a;border-color:#2a425e;color:#eef7ff}html.resumeai-dark .workspace-notification-menu,html.resumeai-neon .workspace-notification-menu{background:#0d192a;border-color:#2a425e}html.resumeai-dark .notification-menu-head,html.resumeai-neon .notification-menu-head{color:#e7f0fa;border-color:#243a58}html.resumeai-dark .notification-item,html.resumeai-neon .notification-item{background:#0d192a}html.resumeai-dark .notification-item.unread,html.resumeai-neon .notification-item.unread{background:#172445}html.resumeai-dark .notification-item strong,html.resumeai-neon .notification-item strong{color:#e7f0fa}html.resumeai-dark .notification-item span,html.resumeai-neon .notification-item span{color:#9eb0c5}
+@media(max-width:700px){.workspace-notification-menu{right:-70px;width:min(320px,88vw)}.workspace-notification-btn{width:34px;height:34px}}
+
+/* ResumeAI profile, security and multilingual mock refinements */
+.profile-avatar-photo{overflow:hidden;position:relative}.profile-avatar-photo img{width:100%;height:100%;object-fit:cover;display:block}.profile-hero-actions{display:flex;flex-direction:column;align-items:flex-end;gap:10px}.profile-photo-editor{display:flex;align-items:center;gap:15px;margin-bottom:18px;padding:14px;border:1px solid #dfe8f1;border-radius:14px;background:#f9fbfd}.profile-photo-editor-preview{width:68px;height:68px;border-radius:18px;overflow:hidden;display:grid;place-items:center;background:linear-gradient(145deg,#2879e7,#6647e9);color:#fff;font-size:24px;font-weight:900;flex-shrink:0}.profile-photo-editor-preview img{width:100%;height:100%;object-fit:cover}.profile-photo-editor strong{display:block;color:#29445f;font-size:11px}.profile-photo-editor p{margin:4px 0 9px;color:#8190a3;font-size:8px;line-height:1.5}.profile-photo-actions{display:flex;gap:8px;flex-wrap:wrap}.photo-upload-label{display:inline-flex!important;align-items:center;cursor:pointer}.profile-field-grid input:disabled,.profile-field-grid textarea:disabled{opacity:.78;cursor:not-allowed;background:#f4f7fa}.security-status-badge{padding:7px 10px;border-radius:999px;font-size:8px;font-weight:900;letter-spacing:.05em}.security-status-badge.on{background:#e9f8f0;color:#17814c}.security-status-badge.off{background:#eef2f6;color:#68798c}.security-setup,.security-form{display:grid;gap:10px}.security-setup>div:first-child{margin-bottom:2px}.security-setup h3,.security-configured-row h3{margin:0;color:#29445f;font-size:12px}.security-setup p,.security-configured-row p{margin:4px 0 0;color:#8190a3;font-size:9px;line-height:1.5}.security-configured-row{display:flex;justify-content:space-between;align-items:center;gap:12px}.security-pin-hidden{letter-spacing:3px;color:#7c8da1;font-weight:900}.security-action-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:4px}.auth-divider{display:flex;align-items:center;gap:10px;color:#99a4b3;font-size:9px}.auth-divider:before,.auth-divider:after{content:"";height:1px;background:#e4e8ee;flex:1}.workspace-avatar-image{overflow:hidden}.workspace-avatar-image img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}
+html.resumeai-dark .profile-photo-editor,html.resumeai-neon .profile-photo-editor{background:#0d192a;border-color:#2a425e}.profile-photo-editor strong,html.resumeai-dark .profile-photo-editor strong,html.resumeai-neon .profile-photo-editor strong{color:#29445f}.profile-photo-editor p,html.resumeai-dark .profile-photo-editor p,html.resumeai-neon .profile-photo-editor p{color:#8190a3}
+html.resumeai-dark .profile-photo-editor strong,html.resumeai-neon .profile-photo-editor strong,html.resumeai-dark .security-setup h3,html.resumeai-neon .security-setup h3,html.resumeai-dark .security-configured-row h3,html.resumeai-neon .security-configured-row h3{color:#e7f0fa}
+html.resumeai-dark .profile-field-grid input:disabled,html.resumeai-dark .profile-field-grid textarea:disabled,html.resumeai-neon .profile-field-grid input:disabled,html.resumeai-neon .profile-field-grid textarea:disabled{background:#101d30;color:#95a8bd;border-color:#293f5c}
+html.resumeai-dark .auth-divider:before,html.resumeai-dark .auth-divider:after,html.resumeai-neon .auth-divider:before,html.resumeai-neon .auth-divider:after{background:#2a425e}
+@media(max-width:700px){.profile-hero-pro{grid-template-columns:70px minmax(0,1fr)}.profile-hero-actions{grid-column:1/-1;flex-direction:row;align-items:center;justify-content:space-between}.profile-photo-editor{align-items:flex-start}.profile-field-grid{grid-template-columns:1fr}.profile-field-grid label.full{grid-column:auto}.security-configured-row{align-items:flex-start}.security-status-badge{align-self:flex-start}}
+
+/* ResumeAI 4.2 accessibility polish: only Light/Dark themes. */
+html.resumeai-dark body,html.resumeai-dark .workspace-content{color:#e8f0fa}
+html.resumeai-dark h1,html.resumeai-dark h2,html.resumeai-dark h3,html.resumeai-dark h4,html.resumeai-dark strong,html.resumeai-dark label{color:#e8f0fa}
+html.resumeai-dark p,html.resumeai-dark small,html.resumeai-dark span{color:inherit}
+html.resumeai-dark input,html.resumeai-dark textarea,html.resumeai-dark select{color:#e8f0fa}
+html.resumeai-dark .workspace-card,html.resumeai-dark .workspace-card p,html.resumeai-dark .workspace-card small{color:#d5e1ee}
+html:not(.resumeai-dark) body{color:#17283f}
+html:not(.resumeai-dark) h1,html:not(.resumeai-dark) h2,html:not(.resumeai-dark) h3,html:not(.resumeai-dark) h4,html:not(.resumeai-dark) strong,html:not(.resumeai-dark) label{color:#1f2f43}
+html:not(.resumeai-dark) p,html:not(.resumeai-dark) small{color:#4f6075}
+.settings-account-premium{display:flex;justify-content:space-between;align-items:center;gap:14px;margin:18px 0;padding:15px;border:1px solid #eadfb8;border-radius:14px;background:linear-gradient(135deg,#fffaf0,#fff)}
+.settings-account-premium>div{display:flex;align-items:center;gap:11px}.settings-account-premium>div>span{font-size:25px}.settings-account-premium strong{display:block;font-size:12px}.settings-account-premium small{display:block;margin-top:3px;color:#7a6d55;font-size:9px}.settings-account-premium>b{padding:7px 10px;border-radius:999px;background:#fff1c7;color:#9b6a10;font-size:8px;white-space:nowrap}
+html.resumeai-dark .settings-account-premium{background:#1b2433;border-color:#5c4d2c}.settings-account-premium b{flex-shrink:0}
+
+/* ResumeAI 4.3 final dark/light readability pass */
+html.resumeai-dark .workspace-shell,
+html.resumeai-dark .workspace-content,
+html.resumeai-dark .workspace-resume-content { background:#07101d !important; color:#eaf2fb !important; }
+html.resumeai-dark .workspace-topbar,
+html.resumeai-dark .workspace-sidebar { background:#0b1726 !important; border-color:#20334a !important; }
+html.resumeai-dark .workspace-brand b,
+html.resumeai-dark .workspace-topnav button,
+html.resumeai-dark .workspace-account,
+html.resumeai-dark .workspace-sidebar>button,
+html.resumeai-dark .workspace-side-footer b,
+html.resumeai-dark .workspace-page h1,
+html.resumeai-dark .workspace-welcome h1 { color:#eef5fc !important; }
+html.resumeai-dark .workspace-topnav button:hover,
+html.resumeai-dark .workspace-topnav button.active,
+html.resumeai-dark .workspace-sidebar>button:hover,
+html.resumeai-dark .workspace-sidebar>button.active { background:#172743 !important; color:#9fc4ff !important; }
+html.resumeai-dark .workspace-account,
+html.resumeai-dark .workspace-account-menu,
+html.resumeai-dark .workspace-card,
+html.resumeai-dark .workspace-stat,
+html.resumeai-dark .professional-module,
+html.resumeai-dark .score-card,
+html.resumeai-dark .score-card-modern,
+html.resumeai-dark .mock-question-card,
+html.resumeai-dark .mock-final-card,
+html.resumeai-dark .mock-feedback-pro,
+html.resumeai-dark .mock-next-ready,
+html.resumeai-dark .job-card,
+html.resumeai-dark .application-card,
+html.resumeai-dark .analytics-card,
+html.resumeai-dark .settings-panel,
+html.resumeai-dark .settings-card,
+html.resumeai-dark .settings-section,
+html.resumeai-dark .settings-nav,
+html.resumeai-dark .settings-account-card,
+html.resumeai-dark .settings-account-premium { background:#0d1929 !important; border-color:#233b55 !important; color:#e8f1fa !important; }
+html.resumeai-dark .professional-module { background:linear-gradient(180deg,#0d1929 0%,#0a1624 100%) !important; }
+html.resumeai-dark .workspace-card-title,
+html.resumeai-dark .workspace-stat strong,
+html.resumeai-dark .workspace-score-body h2,
+html.resumeai-dark .workspace-score-ring strong,
+html.resumeai-dark .workspace-empty h2,
+html.resumeai-dark .workspace-module h2,
+html.resumeai-dark .workspace-auth h2,
+html.resumeai-dark .settings-card strong,
+html.resumeai-dark .settings-card span,
+html.resumeai-dark .settings-section h3,
+html.resumeai-dark .settings-account-premium strong,
+html.resumeai-dark .job-card h3,
+html.resumeai-dark .application-card h3,
+html.resumeai-dark .analytics-card strong,
+html.resumeai-dark .mock-live-shell h2,
+html.resumeai-dark .mock-question-bubble h2,
+html.resumeai-dark .mock-answer-heading strong,
+html.resumeai-dark .mock-next-ready h3,
+html.resumeai-dark .mock-final-card h2,
+html.resumeai-dark .mock-report-item strong,
+html.resumeai-dark .mock-report-item b { color:#edf5fd !important; }
+html.resumeai-dark .workspace-welcome p,
+html.resumeai-dark .workspace-card p,
+html.resumeai-dark .workspace-card small,
+html.resumeai-dark .workspace-stat small,
+html.resumeai-dark .workspace-score-body p,
+html.resumeai-dark .workspace-muted,
+html.resumeai-dark .workspace-module p,
+html.resumeai-dark .job-card p,
+html.resumeai-dark .application-card p,
+html.resumeai-dark .settings-card small,
+html.resumeai-dark .settings-section p,
+html.resumeai-dark .mock-next-ready p,
+html.resumeai-dark .mock-report-item p,
+html.resumeai-dark .mock-conversation-hint { color:#b8c8d9 !important; }
+html.resumeai-dark input,
+html.resumeai-dark textarea,
+html.resumeai-dark select,
+html.resumeai-dark .profile-field-grid input,
+html.resumeai-dark .profile-field-grid textarea { background:#081421 !important; color:#edf5fd !important; border-color:#29425d !important; }
+html.resumeai-dark input::placeholder,
+html.resumeai-dark textarea::placeholder { color:#7890a8 !important; }
+html.resumeai-dark .workspace-actions button,
+html.resumeai-dark .workspace-activity div,
+html.resumeai-dark .workspace-tips div,
+html.resumeai-dark .mock-progress>div,
+html.resumeai-dark .job-filter-bar,
+html.resumeai-dark .settings-nav-item { background:#101f31 !important; border-color:#29415b !important; color:#dbe8f5 !important; }
+html.resumeai-dark .workspace-premium { background:#111d30 !important; border-color:#2a4160 !important; }
+html.resumeai-dark .workspace-premium h3 { color:#edf5fd !important; }
+html.resumeai-dark .score-orbit-modern,
+html.resumeai-dark .score-orbit-inner,
+html.resumeai-dark .dashboard-score-orbit-inner { background:#0d1929 !important; }
+html.resumeai-dark .final-score,
+html.resumeai-dark .score-mini-label,
+html.resumeai-dark .score-out-of { color:#dcecff !important; }
+html.resumeai-dark .mock-report-item { background:#0a1624 !important; border-color:#29415b !important; }
+html.resumeai-dark .mock-report-answer,
+html.resumeai-dark .mock-report-evaluation { background:#101f31 !important; border-color:#29415b !important; }
+html.resumeai-dark .mock-score-pill,
+html.resumeai-dark .mock-report-score { background:#172943 !important; color:#eaf4ff !important; }
+html.resumeai-dark .google-login-btn,
+html.resumeai-dark .voice-preview-setting { background:#101f31 !important; color:#eaf4ff !important; border-color:#2a4663 !important; }
+
+/* The site has only Light and Dark themes. */
+html.resumeai-dark .workspace-sidebar,
+html.resumeai-dark .workspace-topbar { box-shadow:none !important; }
+html.resumeai-dark .workspace-notification-menu,
+html.resumeai-dark .notification-item { background:#0d1929 !important; color:#e8f1fa !important; }
+html.resumeai-dark .notification-item strong { color:#edf5fd !important; }
+html.resumeai-dark .notification-item span { color:#aebfd0 !important; }
+
+/* Mock final report */
+.mock-next-ready{margin-top:18px;padding:20px;border:1px solid #d8e6f5;border-radius:16px;background:#f7fbff;display:flex;justify-content:space-between;align-items:center;gap:18px}.mock-next-ready h3{margin:5px 0;color:#24344d;font-size:15px}.mock-next-ready p{margin:0;color:#6f7d90;font-size:11px;line-height:1.6}.mock-final-report{display:grid;gap:14px;margin:24px 0}.mock-report-item{border:1px solid #dce7f2;border-radius:16px;background:#fff;padding:18px;text-align:left}.mock-report-q{display:grid;gap:6px}.mock-report-q span{font-size:9px;font-weight:900;color:#3476d8;letter-spacing:.08em}.mock-report-q strong{font-size:14px;line-height:1.5;color:#26364b}.mock-report-answer,.mock-report-evaluation{margin-top:12px;padding:12px;border-radius:11px;border:1px solid #e5edf5;background:#f8fbfe}.mock-report-answer b,.mock-report-evaluation b{font-size:10px;color:#42556b}.mock-report-answer p,.mock-report-evaluation p{margin:5px 0 0;font-size:11px;line-height:1.55;color:#617287}.mock-report-evaluation{display:flex;gap:14px;align-items:flex-start}.mock-report-score{min-width:58px;padding:8px;border-radius:9px;background:#edf5ff;color:#1769c2;font-weight:900;font-size:11px;text-align:center}.mock-report-evaluation>div{flex:1}.mock-report-evaluation strong{color:#52657b}
+
+html.resumeai-dark .dashboard,
+html.resumeai-dark .dashboard-grid,
+html.resumeai-dark .analysis-grid,
+html.resumeai-dark .overview-card,
+html.resumeai-dark .report-card,
+html.resumeai-dark .ai-advisor,
+html.resumeai-dark .analysis-box,
+html.resumeai-dark .feedback-block,
+html.resumeai-dark .action-item,
+html.resumeai-dark .breakdown-grid,
+html.resumeai-dark .card-heading { background:#0d1929 !important; color:#eaf2fb !important; border-color:#233b55 !important; }
+html.resumeai-dark .analysis-box h3,
+html.resumeai-dark .overview-card h3,
+html.resumeai-dark .report-card h3,
+html.resumeai-dark .ai-advisor h3,
+html.resumeai-dark .analysis-box strong,
+html.resumeai-dark .overview-card strong,
+html.resumeai-dark .report-card strong { color:#edf5fd !important; }
+html.resumeai-dark .analysis-box p,
+html.resumeai-dark .overview-card p,
+html.resumeai-dark .report-card p,
+html.resumeai-dark .ai-advisor p,
+html.resumeai-dark .feedback-block,
+html.resumeai-dark .action-item { color:#b8c8d9 !important; }
+html.resumeai-dark .score-card-modern .score-mood-row h2,
+html.resumeai-dark .score-card-modern .score-mood-row p,
+html.resumeai-dark .score-card-modern .score-scale span { color:#eaf2fb !important; }
+
+/* =========================================================
+   ResumeAI 4.4 — COMPLETE DARK MODE COVERAGE
+   Keep every workspace surface dark when Dark is selected.
+   This intentionally overrides older light-theme rules that
+   used !important or were introduced by later UI modules.
+========================================================= */
+html.resumeai-dark .workspace-shell,
+html.resumeai-dark .workspace-content,
+html.resumeai-dark .workspace-page,
+html.resumeai-dark .dashboard,
+html.resumeai-dark .dashboard-grid,
+html.resumeai-dark .dashboard-reference-page,
+html.resumeai-dark .analysis-grid,
+html.resumeai-dark .applications-workspace-grid,
+html.resumeai-dark .settings-layout,
+html.resumeai-dark .profile-editor-pro,
+html.resumeai-dark .professional-module,
+html.resumeai-dark .application-panel,
+html.resumeai-dark .application-list-panel,
+html.resumeai-dark .application-add-panel,
+html.resumeai-dark .settings-content-card,
+html.resumeai-dark .settings-nav-card {
+  background:#07101d !important;
+  color:#eaf2fb !important;
+}
+
+/* Dashboard — every card, panel and inner tile */
+html.resumeai-dark .dashboard-topline,
+html.resumeai-dark .dashboard-hero-card,
+html.resumeai-dark .dashboard-side-card,
+html.resumeai-dark .dashboard-insight-row>div,
+html.resumeai-dark .dashboard-score-orbit-inner,
+html.resumeai-dark .dashboard-bottom-banner,
+html.resumeai-dark .dashboard-search,
+html.resumeai-dark .dashboard-analysis-row,
+html.resumeai-dark .dashboard-outline-btn {
+  background:#0d1929 !important;
+  border-color:#263d58 !important;
+  color:#eaf2fb !important;
+}
+
+html.resumeai-dark .dashboard-hero-card:before {
+  background:radial-gradient(circle at 50% 0%,rgba(50,150,255,.13),transparent 42%) !important;
+}
+html.resumeai-dark .dashboard-search input {
+  background:transparent !important;
+  color:#edf5fd !important;
+}
+html.resumeai-dark .dashboard-search input::placeholder { color:#8fa3b9 !important; }
+html.resumeai-dark .dashboard-user { color:#d3dfeb !important; }
+html.resumeai-dark .dashboard-user-avatar {
+  border-color:#29415e !important;
+  background:#172b45 !important;
+  color:#cfe4ff !important;
+}
+html.resumeai-dark .dashboard-hero-card h1,
+html.resumeai-dark .dashboard-side-title h2,
+html.resumeai-dark .dashboard-insight-row strong,
+html.resumeai-dark .dashboard-analysis-row,
+html.resumeai-dark .dashboard-analysis-row strong,
+html.resumeai-dark .dashboard-bottom-banner strong {
+  color:#edf5fd !important;
+}
+html.resumeai-dark .dashboard-hero-card>p,
+html.resumeai-dark .dashboard-side-title>span,
+html.resumeai-dark .dashboard-insight-row small,
+html.resumeai-dark .dashboard-analysis-row em,
+html.resumeai-dark .dashboard-next-step p,
+html.resumeai-dark .dashboard-ai-prompt small {
+  color:#9fb1c4 !important;
+}
+html.resumeai-dark .dashboard-insight-row>div { background:#101f32 !important; }
+html.resumeai-dark .dashboard-quick-tip {
+  background:#102b28 !important;
+  border-color:#23544a !important;
+}
+html.resumeai-dark .dashboard-quick-tip strong { color:#b9f1df !important; }
+html.resumeai-dark .dashboard-quick-tip p { color:#9dc9bb !important; }
+html.resumeai-dark .dashboard-outline-btn {
+  color:#b9d9ff !important;
+}
+html.resumeai-dark .dashboard-side-title,
+html.resumeai-dark .dashboard-analysis-row,
+html.resumeai-dark .dashboard-next-step {
+  border-color:#263d58 !important;
+}
+html.resumeai-dark .dashboard-row-icon { background:#142a43 !important; }
+html.resumeai-dark .dashboard-next-step>span { background:#12372e !important; color:#8ce3c3 !important; }
+html.resumeai-dark .dashboard-ai-prompt {
+  background:#122a43 !important;
+  color:#b9d9ff !important;
+}
+html.resumeai-dark .dashboard-bottom-banner { color:#b9d9ff !important; }
+html.resumeai-dark .dashboard-bottom-banner span:last-child { color:#8eafd1 !important; }
+
+/* My Applications — old light backgrounds were overriding the dark panel. */
+html.resumeai-dark .application-form-modern,
+html.resumeai-dark .application-form-pro,
+html.resumeai-dark .application-card,
+html.resumeai-dark .application-empty,
+html.resumeai-dark .application-kpi,
+html.resumeai-dark .application-kpi-pro,
+html.resumeai-dark .application-notes-field,
+html.resumeai-dark .application-main,
+html.resumeai-dark .application-actions {
+  background:#0d1929 !important;
+  border-color:#263d58 !important;
+  color:#eaf2fb !important;
+}
+html.resumeai-dark .application-form-modern input,
+html.resumeai-dark .application-form-modern textarea,
+html.resumeai-dark .application-form-modern select,
+html.resumeai-dark .application-form-pro input,
+html.resumeai-dark .application-form-pro textarea,
+html.resumeai-dark .application-form-pro select,
+html.resumeai-dark .application-notes-field input,
+html.resumeai-dark .application-notes-field textarea {
+  background:#091625 !important;
+  color:#edf5fd !important;
+  border-color:#2b4663 !important;
+}
+html.resumeai-dark .application-form-modern input::placeholder,
+html.resumeai-dark .application-form-modern textarea::placeholder,
+html.resumeai-dark .application-form-pro input::placeholder,
+html.resumeai-dark .application-form-pro textarea::placeholder {
+  color:#8298ae !important;
+}
+html.resumeai-dark .application-form-modern label,
+html.resumeai-dark .application-form-pro label,
+html.resumeai-dark .panel-heading p,
+html.resumeai-dark .application-kpi em {
+  color:#9db0c4 !important;
+}
+html.resumeai-dark .panel-heading h3,
+html.resumeai-dark .application-card h3,
+html.resumeai-dark .application-card strong,
+html.resumeai-dark .applications-pro-header h1,
+html.resumeai-dark .applications-pro-header h2 {
+  color:#edf5fd !important;
+}
+html.resumeai-dark .application-main a { color:#8fc5ff !important; }
+html.resumeai-dark .application-empty { color:#b7c7d8 !important; }
+html.resumeai-dark .application-empty p,
+html.resumeai-dark .application-empty small { color:#8fa3b9 !important; }
+
+/* Resume Analyzer — no white report card should remain in Dark mode. */
+html.resumeai-dark .score-card,
+html.resumeai-dark .score-card-modern,
+html.resumeai-dark .overview-card,
+html.resumeai-dark .report-card,
+html.resumeai-dark .analysis-box,
+html.resumeai-dark .feedback-content,
+html.resumeai-dark .feedback-block,
+html.resumeai-dark .breakdown-grid,
+html.resumeai-dark .breakdown-item,
+html.resumeai-dark .why-score,
+html.resumeai-dark .action-plan,
+html.resumeai-dark .action-item,
+html.resumeai-dark .card-heading {
+  background:#0d1929 !important;
+  border-color:#263d58 !important;
+  color:#eaf2fb !important;
+}
+html.resumeai-dark .score-card-modern {
+  background:linear-gradient(145deg,#0f1e31 0%,#0c1929 100%) !important;
+}
+html.resumeai-dark .score-card h2,
+html.resumeai-dark .score-card h3,
+html.resumeai-dark .score-card strong,
+html.resumeai-dark .overview-card h3,
+html.resumeai-dark .overview-card strong,
+html.resumeai-dark .report-card h3,
+html.resumeai-dark .report-card strong,
+html.resumeai-dark .analysis-box h3,
+html.resumeai-dark .analysis-box strong,
+html.resumeai-dark .feedback-block h3,
+html.resumeai-dark .action-item strong {
+  color:#edf5fd !important;
+}
+html.resumeai-dark .score-card p,
+html.resumeai-dark .overview-card p,
+html.resumeai-dark .report-card p,
+html.resumeai-dark .analysis-box p,
+html.resumeai-dark .feedback-block p,
+html.resumeai-dark .action-item p,
+html.resumeai-dark .why-score li,
+html.resumeai-dark .analysis-box li,
+html.resumeai-dark .feedback-block li {
+  color:#b5c6d8 !important;
+}
+
+/* Shared controls */
+html.resumeai-dark input,
+html.resumeai-dark textarea,
+html.resumeai-dark select {
+  background:#091625 !important;
+  color:#edf5fd !important;
+  border-color:#2b4663 !important;
+}
+html.resumeai-dark input::placeholder,
+html.resumeai-dark textarea::placeholder { color:#8298ae !important; }
+html.resumeai-dark button.secondary-action,
+html.resumeai-dark button.voice-btn,
+html.resumeai-dark .secondary-action {
+  background:#122036 !important;
+  color:#d6e7f7 !important;
+  border-color:#2b4663 !important;
+}
+
+/* Prevent light-only inline-like module surfaces from leaking through. */
+html.resumeai-dark .upload-card,
+html.resumeai-dark .selected-file,
+html.resumeai-dark .enhance-info,
+html.resumeai-dark .enhance-content,
+html.resumeai-dark .enhanced-result,
+html.resumeai-dark .enhanced-preview-paper,
+html.resumeai-dark .resume-paper,
+html.resumeai-dark .job-card,
+html.resumeai-dark .empty-module,
+html.resumeai-dark .module-message,
+html.resumeai-dark .settings-pane,
+html.resumeai-dark .security-panel,
+html.resumeai-dark .preference-cards>div,
+html.resumeai-dark .settings-select-card,
+html.resumeai-dark .theme-choice,
+html.resumeai-dark .profile-insight-grid>div,
+html.resumeai-dark .mock-ai-controls,
+html.resumeai-dark .mock-final-card,
+html.resumeai-dark .mock-next-ready {
+  background:#0d1929 !important;
+  border-color:#263d58 !important;
+  color:#eaf2fb !important;
+}
+
+/* Explicitly hide any accidental light background on the page root. */
+html.resumeai-dark,
+html.resumeai-dark body,
+html.resumeai-dark #root {
+  background:#07101d !important;
+  color:#eaf2fb !important;
+}
+
+/* =========================
+   ENHANCE TEMPLATE PICKER
+========================= */
+.enhance-template-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+  margin:4px 0 18px;
+}
+.enhance-template-card{
+  position:relative;
+  text-align:left;
+  border:1px solid #dfe5ef;
+  background:#fff;
+  border-radius:14px;
+  padding:10px;
+  cursor:pointer;
+  transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;
+  color:#1f2937;
+}
+.enhance-template-card:hover:not(:disabled){
+  transform:translateY(-2px);
+  border-color:#315bdc;
+  box-shadow:0 10px 25px rgba(49,91,220,.12);
+}
+.enhance-template-card.selected{
+  border:2px solid #315bdc;
+  padding:9px;
+  box-shadow:0 10px 28px rgba(49,91,220,.15);
+}
+.enhance-template-card:disabled{opacity:.7;cursor:wait}
+.template-thumb{
+  height:125px;
+  border-radius:9px;
+  overflow:hidden;
+  border:1px solid #e2e7ef;
+  background:#f8fafc;
+  padding:9px;
+  margin-bottom:9px;
+}
+.template-thumb-top{display:flex;align-items:center;gap:7px;font-size:9px;margin-bottom:12px}
+.template-thumb-top span{font-size:15px}
+.template-thumb-top b{font-size:10px;letter-spacing:.8px}
+.template-thumb-body{display:grid;gap:6px}
+.template-thumb-body i{display:block;height:5px;border-radius:4px;background:#d6ddea;width:85%}
+.template-thumb-body i:nth-child(2){width:70%}
+.template-thumb-body i:nth-child(3){width:92%}
+.template-thumb-body i:nth-child(4){width:62%}
+.template-thumb-body i:nth-child(5){width:78%}
+.template-thumb-professional{background:#fff}
+.template-thumb-professional .template-thumb-top{color:#315bdc;border-bottom:2px solid #315bdc;padding-bottom:7px}
+.template-thumb-executive{background:linear-gradient(90deg,#173b72 0 31%,#fff 31%)}
+.template-thumb-executive .template-thumb-top{color:#fff}
+.template-thumb-executive .template-thumb-body{margin-left:36%}
+.template-thumb-modern{background:linear-gradient(90deg,#5b35d5 0 28%,#fff 28%)}
+.template-thumb-modern .template-thumb-top{color:#fff}
+.template-thumb-modern .template-thumb-body{margin-left:33%}
+.template-thumb-minimal{background:#fff}
+.template-thumb-minimal .template-thumb-top{color:#111827;border-bottom:1px solid #111827;padding-bottom:7px}
+.template-card-text{display:grid;gap:3px;padding:0 2px}
+.template-card-text strong{font-size:11px;color:#1b2537}
+.template-card-text span{font-size:9px;color:#788397;line-height:1.35}
+.template-select-state{display:block;margin-top:8px;font-size:9px;font-weight:800;color:#315bdc}
+.selected-template-label{margin:3px 0 10px;font-size:10px;color:#748095}
+.selected-template-label strong{color:#1f2a3d}
+
+/* Selected preview variants */
+.enhanced-template-executive .enhanced-preview-header{
+  background:#173b72 !important;color:#fff !important;border-radius:0;padding:18px 20px;
+}
+.enhanced-template-executive .enhanced-preview-header h2{color:#fff !important;text-transform:uppercase;letter-spacing:1.5px}
+.enhanced-template-executive .enhanced-preview-contact{color:#e5eef8 !important}
+.enhanced-template-executive .enhanced-preview-columns{grid-template-columns:29% 71% !important}
+.enhanced-template-executive .enhanced-preview-columns>aside{background:#eaf2f8;padding:16px}
+.enhanced-template-executive .enhanced-preview-columns>div{padding:16px 20px}
+.enhanced-template-executive .enhanced-preview-section h4{color:#173b72 !important}
+.enhanced-template-modern .enhanced-preview-columns{grid-template-columns:29% 71% !important}
+.enhanced-template-modern .enhanced-preview-columns>aside{background:#5b35d5;padding:16px;color:#fff}
+.enhanced-template-modern .enhanced-preview-columns>div{padding:16px 20px}
+.enhanced-template-modern .enhanced-preview-columns>aside .enhanced-preview-section h4{color:#fff !important}
+.enhanced-template-modern .enhanced-preview-columns>aside p,.enhanced-template-modern .enhanced-preview-columns>aside .enhanced-preview-bullet{color:#eeeaff !important}
+.enhanced-template-minimal .enhanced-preview-paper{border-radius:0;box-shadow:none}
+.enhanced-template-minimal .enhanced-preview-header{border-bottom:2px solid #111827}
+.enhanced-template-minimal .enhanced-preview-header h2{font-size:24px;letter-spacing:.2px}
+.enhanced-template-minimal .enhanced-preview-section h4{color:#111827 !important;letter-spacing:.6px}
+
+html.resumeai-dark .enhance-template-card{background:#0d1929;border-color:#263d58;color:#edf5fd}
+html.resumeai-dark .template-card-text strong{color:#edf5fd}
+html.resumeai-dark .template-card-text span{color:#93a7ba}
+html.resumeai-dark .selected-template-label{color:#91a5b9}
+html.resumeai-dark .selected-template-label strong{color:#edf5fd}
+
+@media(max-width:1000px){
+  .enhance-template-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:600px){
+  .enhance-template-grid{grid-template-columns:1fr}
+  .template-thumb{height:105px}
+}
