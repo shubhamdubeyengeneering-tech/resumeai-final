@@ -1940,3 +1940,373 @@ html.resumeai-dark .selected-template-label strong{color:#edf5fd}
   .enhance-template-grid{grid-template-columns:1fr}
   .template-thumb{height:105px}
 }
+
+
+/* =========================================================
+   ResumeAI DARK THEME — GLOBAL SURFACE SAFETY NET
+   Keeps every workspace surface readable in dark mode.
+   ========================================================= */
+html.resumeai-dark { background:#07101d !important; }
+html.resumeai-dark body { background:#07101d !important; color:#e8f0fa !important; }
+html.resumeai-dark #root { background:#07101d !important; }
+html.resumeai-dark .workspace-page,
+html.resumeai-dark .workspace-resume-content,
+html.resumeai-dark .workspace-content,
+html.resumeai-dark .workspace-shell { background:#07101d !important; color:#e8f0fa !important; }
+html.resumeai-dark .professional-module,
+html.resumeai-dark .workspace-card,
+html.resumeai-dark .report-card,
+html.resumeai-dark .analysis-box,
+html.resumeai-dark .overview-card,
+html.resumeai-dark .score-card,
+html.resumeai-dark .upload-card,
+html.resumeai-dark .application-panel,
+html.resumeai-dark .empty-module,
+html.resumeai-dark .jobs-filter-panel,
+html.resumeai-dark .job-card,
+html.resumeai-dark .workspace-auth,
+html.resumeai-dark .settings-content-card,
+html.resumeai-dark .settings-nav-card,
+html.resumeai-dark .settings-pane,
+html.resumeai-dark .profile-editor-pro,
+html.resumeai-dark .mock-ai-hero,
+html.resumeai-dark .mock-question-bubble,
+html.resumeai-dark .mock-answer-area,
+html.resumeai-dark .premium-feature-live,
+html.resumeai-dark .premium-hero-live {
+  background:#0e1a2a !important;
+  color:#e7eff8 !important;
+  border-color:#263d58 !important;
+}
+html.resumeai-dark .card-heading,
+html.resumeai-dark .report-card h2,
+html.resumeai-dark .report-card h3,
+html.resumeai-dark .analysis-box h3,
+html.resumeai-dark .overview-card h3,
+html.resumeai-dark .upload-card h2,
+html.resumeai-dark .empty-module h3,
+html.resumeai-dark .job-card h3,
+html.resumeai-dark .workspace-auth h2 { color:#edf5fd !important; }
+html.resumeai-dark .report-card p,
+html.resumeai-dark .analysis-box p,
+html.resumeai-dark .overview-card p,
+html.resumeai-dark .upload-card p,
+html.resumeai-dark .empty-module p,
+html.resumeai-dark .job-card p,
+html.resumeai-dark .muted,
+html.resumeai-dark .workspace-muted { color:#9eb0c5 !important; }
+html.resumeai-dark input,
+html.resumeai-dark textarea,
+html.resumeai-dark select,
+html.resumeai-dark .upload-card input,
+html.resumeai-dark .workspace-auth input {
+  background:#0a1524 !important; color:#edf5fd !important; border-color:#2a425e !important;
+}
+html.resumeai-dark input::placeholder,
+html.resumeai-dark textarea::placeholder { color:#71869d !important; }
+html.resumeai-dark button.secondary-action,
+html.resumeai-dark .details-button,
+html.resumeai-dark .dashboard-outline-btn,
+html.resumeai-dark .theme-choice {
+  background:#122239 !important; color:#dce9f7 !important; border-color:#2b4664 !important;
+}
+html.resumeai-dark .section-status,
+html.resumeai-dark .preference-cards > div,
+html.resumeai-dark .settings-select-card,
+html.resumeai-dark .security-lock-card,
+html.resumeai-dark .profile-insight-grid > div,
+html.resumeai-dark .profile-photo-editor {
+  background:#101f32 !important; color:#dce7f3 !important; border-color:#29415e !important;
+}
+html.resumeai-dark .section-status span:first-child,
+html.resumeai-dark .preference-cards strong,
+html.resumeai-dark .preference-cards span,
+html.resumeai-dark .profile-insight-grid small { color:#cbd9e8 !important; }
+html.resumeai-dark .job-card .job-company,
+html.resumeai-dark .job-card .job-location { color:#a8b9ca !important; }
+html.resumeai-dark a { color:#83b9ff; }
+html.resumeai-dark .enhanced-preview-paper { background:#f8fafc !important; color:#182235 !important; }
+html.resumeai-dark .enhance-template-card { background:#0e1a2a !important; border-color:#2b425d !important; }
+html.resumeai-dark .template-thumb { border-color:#2b425d !important; }
+html.resumeai-dark .error-message { background:#351b23 !important; color:#ffb9c2 !important; border-color:#6a3542 !important; }
+html.resumeai-dark .success-message { background:#123126 !important; color:#b9f1d8 !important; border-color:#285a48 !important; }
+
+
+/* =========================================================
+   ResumeAI 4.9 — DARK THEME FINAL SURFACE + ENHANCE PREVIEW
+   The generated resume preview is intentionally paper-white,
+   but ALL preview text must stay dark/readable in Dark mode.
+   ========================================================= */
+html.resumeai-dark .enhance-card,
+html.resumeai-dark .enhance-card .card-heading,
+html.resumeai-dark .enhance-card .enhance-content,
+html.resumeai-dark .enhance-card .enhance-info,
+html.resumeai-dark .enhance-card .enhance-features,
+html.resumeai-dark .enhance-card .enhance-photo-options,
+html.resumeai-dark .enhance-card .enhanced-result {
+  color:#eaf2fb !important;
+}
+html.resumeai-dark .enhance-card .enhance-content h2,
+html.resumeai-dark .enhance-card .enhanced-result-header h3,
+html.resumeai-dark .enhance-card .enhanced-result-header p,
+html.resumeai-dark .enhance-card .enhance-content p,
+html.resumeai-dark .enhance-card .enhance-photo-header h3,
+html.resumeai-dark .enhance-card .enhance-photo-header p {
+  color:#eaf2fb !important;
+}
+html.resumeai-dark .enhance-card .enhance-features span {
+  background:#14263d !important;
+  color:#cfe0f2 !important;
+  border:1px solid #29425e !important;
+}
+html.resumeai-dark .enhanced-preview-paper,
+html.resumeai-dark .enhanced-preview-paper * {
+  color:#23344d;
+}
+html.resumeai-dark .enhanced-preview-paper {
+  background:#ffffff !important;
+  color:#23344d !important;
+  border-color:#cbd7e4 !important;
+}
+html.resumeai-dark .enhanced-preview-paper .enhanced-preview-header h2 {
+  color:#172b43 !important;
+}
+html.resumeai-dark .enhanced-preview-paper .enhanced-preview-contact {
+  color:#52657a !important;
+}
+html.resumeai-dark .enhanced-preview-paper .enhanced-preview-section h4 {
+  color:#1b6edc !important;
+}
+html.resumeai-dark .enhanced-preview-paper .enhanced-preview-section p,
+html.resumeai-dark .enhanced-preview-paper .enhanced-preview-bullet,
+html.resumeai-dark .enhanced-preview-paper .enhanced-preview-bullet span:not(:first-child) {
+  color:#4e5e73 !important;
+}
+html.resumeai-dark .enhanced-preview-paper .enhanced-preview-bullet span:first-child {
+  color:#1b73e8 !important;
+}
+html.resumeai-dark .enhanced-preview-paper .enhanced-preview-photo-placeholder {
+  background:#f2f6fa !important;
+  color:#66778b !important;
+  border-color:#d8e2ec !important;
+}
+html.resumeai-dark .enhanced-template-executive .enhanced-preview-header h2,
+html.resumeai-dark .enhanced-template-executive .enhanced-preview-contact,
+html.resumeai-dark .enhanced-template-modern .enhanced-preview-columns>aside,
+html.resumeai-dark .enhanced-template-modern .enhanced-preview-columns>aside * {
+  color:#fff !important;
+}
+html.resumeai-dark .enhanced-template-executive .enhanced-preview-columns>aside,
+html.resumeai-dark .enhanced-template-modern .enhanced-preview-columns>aside {
+  color:#fff !important;
+}
+html.resumeai-dark .enhanced-template-executive .enhanced-preview-columns>aside p,
+html.resumeai-dark .enhanced-template-executive .enhanced-preview-columns>aside .enhanced-preview-bullet {
+  color:#4e5e73 !important;
+}
+html.resumeai-dark .enhanced-template-executive .enhanced-preview-columns>aside .enhanced-preview-section h4 {
+  color:#173b72 !important;
+}
+html.resumeai-dark .enhanced-template-modern .enhanced-preview-columns>aside .enhanced-preview-section h4,
+html.resumeai-dark .enhanced-template-modern .enhanced-preview-columns>aside p,
+html.resumeai-dark .enhanced-template-modern .enhanced-preview-columns>aside .enhanced-preview-bullet {
+  color:#eeeaff !important;
+}
+
+/* Dark workspace controls: no accidental white islands. */
+html.resumeai-dark .job-filter-bar,
+html.resumeai-dark .job-search-bar,
+html.resumeai-dark .job-search-bar form,
+html.resumeai-dark .application-overview,
+html.resumeai-dark .application-form,
+html.resumeai-dark .settings-row-pro,
+html.resumeai-dark .settings-live-note,
+html.resumeai-dark .ai-capability-grid span,
+html.resumeai-dark .settings-voice-card,
+html.resumeai-dark .profile-photo-editor,
+html.resumeai-dark .security-setup,
+html.resumeai-dark .security-configured-row {
+  background:#0d1929 !important;
+  color:#eaf2fb !important;
+  border-color:#263d58 !important;
+}
+html.resumeai-dark .job-filter-bar label,
+html.resumeai-dark .job-search-bar label,
+html.resumeai-dark .application-overview label,
+html.resumeai-dark .settings-row-pro h3,
+html.resumeai-dark .settings-row-pro p,
+html.resumeai-dark .settings-voice-card strong,
+html.resumeai-dark .settings-voice-card small,
+html.resumeai-dark .ai-capability-grid span,
+html.resumeai-dark .security-setup h3,
+html.resumeai-dark .security-setup p,
+html.resumeai-dark .security-configured-row h3,
+html.resumeai-dark .security-configured-row p {
+  color:#d9e6f3 !important;
+}
+html.resumeai-dark .settings-live-note { color:#b9d4ef !important; }
+
+
+/* =========================================================
+   ResumeAI 5.0 DARK THEME — final contrast safety net
+   Keep resume-paper previews intentionally white; everything else in the
+   application chrome must remain dark/readable.
+   ========================================================= */
+html.resumeai-dark body,
+html.resumeai-dark #root,
+html.resumeai-dark .app-shell,
+html.resumeai-dark .workspace-shell,
+html.resumeai-dark .workspace-main,
+html.resumeai-dark .workspace-content,
+html.resumeai-dark .professional-module,
+html.resumeai-dark .settings-command-center,
+html.resumeai-dark .profile-command-center,
+html.resumeai-dark .premium-command-center { background:#08111f !important; color:#e8f1fa !important; }
+html.resumeai-dark .profile-avatar-xl,
+html.resumeai-dark .profile-avatar-photo,
+html.resumeai-dark .profile-avatar-gradient,
+html.resumeai-dark .profile-photo-editor-preview,
+html.resumeai-dark .settings-avatar { background:linear-gradient(145deg,#173b63,#30255c) !important; color:#f4f8ff !important; border-color:#34567a !important; }
+html.resumeai-dark .profile-avatar-photo:not(:has(img)),
+html.resumeai-dark .settings-avatar { box-shadow:inset 0 0 0 1px rgba(255,255,255,.08); }
+html.resumeai-dark .settings-account-premium,
+html.resumeai-dark .premium-coming-card,
+html.resumeai-dark .premium-feature-live,
+html.resumeai-dark .workspace-premium,
+html.resumeai-dark .premium-hero-live,
+html.resumeai-dark .premium-feature-grid,
+html.resumeai-dark .settings-content-card,
+html.resumeai-dark .settings-nav-card,
+html.resumeai-dark .settings-pane,
+html.resumeai-dark .settings-select-card,
+html.resumeai-dark .settings-voice-card,
+html.resumeai-dark .preference-cards>div,
+html.resumeai-dark .security-panel,
+html.resumeai-dark .security-lock-card,
+html.resumeai-dark .profile-insight-grid>div,
+html.resumeai-dark .profile-editor-pro,
+html.resumeai-dark .profile-photo-editor { background:#101d30 !important; color:#e8f1fa !important; border-color:#29445f !important; }
+html.resumeai-dark .settings-account-premium strong,
+html.resumeai-dark .settings-account-premium small,
+html.resumeai-dark .premium-coming-card strong,
+html.resumeai-dark .premium-coming-card p,
+html.resumeai-dark .premium-feature-live strong,
+html.resumeai-dark .premium-feature-live p,
+html.resumeai-dark .profile-hero-copy h2,
+html.resumeai-dark .profile-hero-copy p,
+html.resumeai-dark .profile-editor-title h3,
+html.resumeai-dark .profile-editor-title p { color:#e8f1fa !important; }
+html.resumeai-dark .settings-account-premium small,
+html.resumeai-dark .premium-coming-card p,
+html.resumeai-dark .premium-feature-live p,
+html.resumeai-dark .profile-hero-copy p,
+html.resumeai-dark .profile-editor-title p { color:#9bb0c5 !important; }
+html.resumeai-dark .settings-account-premium>b,
+html.resumeai-dark .premium-coming-card b { background:#3a3020 !important; color:#ffd77b !important; border:1px solid #705a2d !important; }
+html.resumeai-dark .profile-field-grid label,
+html.resumeai-dark .profile-field-grid input,
+html.resumeai-dark .profile-field-grid textarea,
+html.resumeai-dark .settings-select-card select,
+html.resumeai-dark .settings-voice-card select,
+html.resumeai-dark .security-pin-input { color:#e8f1fa !important; background:#0a1627 !important; border-color:#31506f !important; }
+html.resumeai-dark .profile-field-grid input:disabled,
+html.resumeai-dark .profile-field-grid textarea:disabled { background:#0e1a2b !important; color:#9bb0c5 !important; }
+html.resumeai-dark .settings-nav-item strong,
+html.resumeai-dark .settings-nav-item small,
+html.resumeai-dark .settings-pane-head h3,
+html.resumeai-dark .settings-pane-head p,
+html.resumeai-dark .settings-row-pro h3,
+html.resumeai-dark .settings-row-pro p,
+html.resumeai-dark .settings-select-card span,
+html.resumeai-dark .settings-select-card small,
+html.resumeai-dark .settings-voice-card strong,
+html.resumeai-dark .settings-voice-card small,
+html.resumeai-dark .preference-cards strong,
+html.resumeai-dark .preference-cards span { color:#e1ecf7 !important; }
+html.resumeai-dark .settings-pane-head p,
+html.resumeai-dark .settings-row-pro p,
+html.resumeai-dark .settings-select-card small,
+html.resumeai-dark .settings-voice-card small,
+html.resumeai-dark .preference-cards span { color:#91a7bc !important; }
+html.resumeai-dark .secondary-action,
+html.resumeai-dark .voice-preview-setting,
+html.resumeai-dark .voice-play-btn { background:#14263c !important; color:#d9ebfb !important; border-color:#31506f !important; }
+html.resumeai-dark .settings-live-note,
+html.resumeai-dark .ai-capability-grid span { background:#102238 !important; color:#a9c1d8 !important; border-color:#29445f !important; }
+/* White icons/placeholders from light-theme rules */
+html.resumeai-dark .profile-avatar-photo,
+html.resumeai-dark .profile-avatar-xl,
+html.resumeai-dark .settings-avatar,
+html.resumeai-dark .settings-gear { color:#eaf3ff !important; }
+/* Do not darken actual resume-paper previews. Their white paper is intentional. */
+html.resumeai-dark .enhanced-preview-paper { background:#fff !important; color:#17212b !important; }
+html.resumeai-dark .enhanced-preview-paper * { color:inherit; }
+
+
+/* =========================================================
+   ResumeAI 5.1 — FINAL DARK PREMIUM READABILITY OVERRIDE
+   The premium area must never inherit light-theme white cards/text.
+   ========================================================= */
+html.resumeai-dark .premium-command-center,
+html.resumeai-dark .premium-command-center.animated-module {
+  background:#08111f !important;
+  color:#e8f1fa !important;
+  border-color:#263d58 !important;
+}
+html.resumeai-dark .premium-command-center .premium-hero-live {
+  background:linear-gradient(135deg,#10243b 0%,#1a1730 100%) !important;
+  color:#e8f1fa !important;
+  border-color:#31516f !important;
+}
+html.resumeai-dark .premium-command-center .premium-hero-live .eyebrow,
+html.resumeai-dark .premium-command-center .premium-hero-live h2,
+html.resumeai-dark .premium-command-center .premium-hero-live p {
+  color:#edf5fd !important;
+}
+html.resumeai-dark .premium-command-center .premium-hero-live p { color:#9db1c7 !important; }
+html.resumeai-dark .premium-command-center .premium-feature-grid {
+  background:transparent !important;
+}
+html.resumeai-dark .premium-command-center .premium-feature-live,
+html.resumeai-dark .premium-command-center .premium-coming-card {
+  background:#101d30 !important;
+  color:#e8f1fa !important;
+  border:1px solid #2a4561 !important;
+  box-shadow:none !important;
+}
+html.resumeai-dark .premium-command-center .premium-feature-live:hover,
+html.resumeai-dark .premium-command-center .premium-coming-card:hover {
+  background:#14263c !important;
+  border-color:#3a6288 !important;
+}
+html.resumeai-dark .premium-command-center .premium-feature-icon {
+  background:#162b44 !important;
+  color:#f1f7ff !important;
+  border:1px solid #2d4b69 !important;
+}
+html.resumeai-dark .premium-command-center .premium-feature-live strong,
+html.resumeai-dark .premium-command-center .premium-coming-card strong {
+  color:#edf5fd !important;
+}
+html.resumeai-dark .premium-command-center .premium-feature-live p,
+html.resumeai-dark .premium-command-center .premium-coming-card p {
+  color:#9db1c7 !important;
+}
+html.resumeai-dark .premium-command-center .premium-feature-live b,
+html.resumeai-dark .premium-command-center .premium-coming-card b {
+  background:#332b1d !important;
+  color:#ffd77b !important;
+  border:1px solid #6b5730 !important;
+}
+html.resumeai-dark .settings-account-premium {
+  background:#101d30 !important;
+  color:#e8f1fa !important;
+  border:1px solid #2a4561 !important;
+}
+html.resumeai-dark .settings-account-premium strong { color:#edf5fd !important; }
+html.resumeai-dark .settings-account-premium small { color:#9db1c7 !important; }
+html.resumeai-dark .settings-account-premium>b {
+  background:#332b1d !important;
+  color:#ffd77b !important;
+  border:1px solid #6b5730 !important;
+}

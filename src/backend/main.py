@@ -146,11 +146,12 @@ def clean_text(text: str) -> str:
 
 
 def extract_from_pdf(data: bytes) -> str:
-    """Fast, high-recall PDF extraction.
+    """Fast native extraction with targeted OCR fallback for scanned resumes.
 
-    Native PDF text is always preferred. OCR is used only for sparse/scanned
-    PDFs and is capped to the first two pages to avoid making normal analysis
-    unnecessarily slow.
+    Normal text PDFs return immediately. OCR is only used when native text is
+    sparse. The first two pages are tried first; if that still does not produce
+    enough text, the remaining pages are OCR'd. A sparse-layout PSM 11 retry is
+    used only for pages where PSM 6 produced very little text.
     """
     doc = fitz.open(stream=data, filetype="pdf")
     try:
@@ -163,26 +164,46 @@ def extract_from_pdf(data: bytes) -> str:
             except Exception as exc:
                 print("PDF native text error:", repr(exc))
         native = clean_text("\n\n".join(native_pages))
-        if len(native) >= 900:
+        # Most resumes are normal text PDFs. This is the fast path.
+        if len(native) >= 120:
             return native
 
+        def ocr_page(page, scale=0.9):
+            pix = page.get_pixmap(matrix=fitz.Matrix(scale, scale), alpha=False)
+            image = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+            gray = ImageOps.autocontrast(ImageOps.grayscale(image))
+            return pytesseract.image_to_string(gray, config="--psm 6") or ""
+
         ocr_pages = []
-        for index, page in enumerate(doc):
-            if index >= min(len(doc), 4):
-                break
+        # First pass: likely resume pages. This keeps scanned-resume latency
+        # reasonable for the common 1–2 page case.
+        first_pass = min(len(doc), 2)
+        for index in range(first_pass):
             try:
-                pix = page.get_pixmap(matrix=fitz.Matrix(2.0, 2.0), alpha=False)
-                image = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-                gray = ImageOps.autocontrast(ImageOps.grayscale(image))
-                value = pytesseract.image_to_string(gray, config="--psm 6")
-                if not value.strip():
-                    value = pytesseract.image_to_string(gray, config="--psm 11")
+                value = ocr_page(doc[index], 0.9)
                 if value.strip():
                     ocr_pages.append(value)
             except Exception as exc:
                 print("PDF OCR page error:", repr(exc))
-        ocr = clean_text("\n\n".join(ocr_pages))
-        return clean_text(native + ("\n\n" + ocr if ocr else ""))
+
+        combined = clean_text(native + ("\n\n" + clean_text("\n\n".join(ocr_pages)) if ocr_pages else ""))
+        if len(combined) >= 120 or len(doc) <= first_pass:
+            return combined
+
+        # If the first pages are image-only and still nearly empty, inspect the
+        # rest of the document instead of rejecting a perfectly valid 3+ page CV.
+        for index in range(first_pass, len(doc)):
+            try:
+                value = ocr_page(doc[index], 0.85)
+                if value.strip():
+                    ocr_pages.append(value)
+                combined = clean_text(native + "\n\n" + "\n\n".join(ocr_pages))
+                if len(combined) >= 250:
+                    break
+            except Exception as exc:
+                print("PDF OCR continuation error:", repr(exc))
+
+        return clean_text(native + ("\n\n" + "\n\n".join(ocr_pages) if ocr_pages else ""))
     finally:
         doc.close()
 
@@ -285,27 +306,18 @@ def extract_from_image(data: bytes) -> str:
 
     gray = ImageOps.autocontrast(ImageOps.grayscale(image))
     texts = []
-    for config in ("--psm 6", "--psm 11"):
-        try:
-            value = pytesseract.image_to_string(gray, config=config)
-            if value.strip():
-                texts.append(value)
-        except Exception as exc:
-            print("Image OCR error:", repr(exc))
+    try:
+        value = pytesseract.image_to_string(gray, config="--psm 6") or ""
+        if value.strip():
+            texts.append(value)
+        if len(value.strip()) < 80:
+            sparse = pytesseract.image_to_string(gray, config="--psm 11") or ""
+            if len(sparse.strip()) > len(value.strip()):
+                texts = [sparse]
+    except Exception as exc:
+        print("Image OCR error:", repr(exc))
 
     merged = clean_text("\n".join(texts))
-    email_found = bool(re.search(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", merged, re.I))
-    phone_found = has_phone_number(merged)
-    if not (email_found and phone_found):
-        # Contact details are often placed in a compact header/sidebar.
-        try:
-            top = gray.crop((0, 0, gray.width, max(1, int(gray.height * 0.42))))
-            value = pytesseract.image_to_string(top, config="--psm 11")
-            if value.strip():
-                texts.append(value)
-        except Exception as exc:
-            print("Contact OCR error:", repr(exc))
-
     seen = set(); lines = []
     for block in texts:
         for line in block.splitlines():
@@ -2059,92 +2071,49 @@ def gemini_generate(
     response_schema=None,
     temperature: float = 0.2,
 ):
-
     if gemini_client is None or types is None:
         raise RuntimeError(
             "Gemini API key is not configured or the google-genai package is unavailable."
         )
 
-    # Try current model first, then fallback.
-    models = [
-        os.getenv("RESUMEAI_GEMINI_MODEL", "gemini-3.8-flash"),
-        "gemini-3.7-flash",
-        "gemini-3.5-flash-lite",
-    ]
+    configured = os.getenv("RESUMEAI_GEMINI_MODEL", "gemini-3.8-flash").strip() or "gemini-3.8-flash"
+    # Keep the fast production model first. The lite fallback is attempted only
+    # when the primary model/API request fails, so normal requests do not pay
+    # for retries or extra latency.
+    models = []
+    for candidate in (configured, "gemini-3.5-flash-lite"):
+        if candidate and candidate not in models:
+            models.append(candidate)
+
+    config_kwargs = {
+        "temperature": temperature,
+        "max_output_tokens": 900,
+    }
+    # Gemini 3.x supports a low thinking level, which is appropriate for this
+    # short evidence-extraction/feedback task and keeps the advisor responsive.
+    try:
+        config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_level="low")
+    except Exception:
+        pass
+    if response_schema is not None:
+        config_kwargs.update({
+            "response_mime_type": "application/json",
+            "response_schema": response_schema,
+        })
 
     last_error = None
+    for model_name in models:
+        try:
+            return gemini_client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(**config_kwargs),
+            )
+        except Exception as exc:
+            last_error = exc
+            print(f"Gemini request error using {model_name}:", repr(exc))
 
-    for model_index, model_name in enumerate(
-        models
-    ):
-
-        for attempt in range(3):
-
-            try:
-
-                config_kwargs = {
-                    "temperature": temperature,
-                }
-
-                if response_schema is not None:
-
-                    config_kwargs.update(
-                        {
-                            "response_mime_type": "application/json",
-                            "response_schema": response_schema,
-                        }
-                    )
-
-                response = (
-                    gemini_client.models.generate_content(
-                        model=model_name,
-                        contents=prompt,
-                        config=types.GenerateContentConfig(
-                            **config_kwargs
-                        ),
-                    )
-                )
-
-                return response
-
-            except Exception as exc:
-
-                last_error = exc
-
-                print(
-                    f"Gemini error using {model_name}, "
-                    f"attempt {attempt + 1}:",
-                    repr(exc),
-                )
-
-                if not is_transient_gemini_error(
-                    exc
-                ):
-                    break
-
-                if attempt < 2:
-
-                    wait_time = min(
-                        2 ** attempt,
-                        6,
-                    )
-
-                    time.sleep(
-                        wait_time
-                    )
-
-        print(
-            f"Gemini model {model_name} exhausted."
-        )
-
-        if model_index < len(models) - 1:
-            continue
-
-    raise RuntimeError(
-        str(last_error)
-        if last_error
-        else "Gemini request failed."
-    )
+    raise RuntimeError(str(last_error) if last_error else "Gemini request failed.")
 
 
 # =========================================================
@@ -3792,12 +3761,12 @@ async def analyze_resume(
             data,
         )
 
-        if len(text.strip()) < 35:
+        if len(text.strip()) < 20:
 
             return {
                 "success": False,
                 "message": (
-                    "Could not extract enough text. Please upload a clear resume."
+                    "Could not extract enough readable text. Please upload a clear resume PDF/DOC/DOCX or a higher-quality scan."
                 ),
             }
 

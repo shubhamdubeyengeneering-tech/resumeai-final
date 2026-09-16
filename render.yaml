@@ -1,0 +1,43 @@
+services:
+  - type: web
+    name: resumeai-backend
+    env: python
+    rootDir: src/backend
+    buildCommand: pip install -r ../../requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /
+    envVars:
+      - key: AUTH_SECRET_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: RESUMEAI_GEMINI_MODEL
+        value: gemini-3.8-flash
+      - key: RESUMEAI_NOTIFICATION_WORKER
+        value: "true"
+      - key: RESUMEAI_FRONTEND_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        sync: false
+      - key: RESUMEAI_SMTP_USER
+        sync: false
+      - key: RESUMEAI_SMTP_PASSWORD
+        sync: false
+      - key: RESUMEAI_SMTP_FROM
+        sync: false
+      - key: ADZUNA_APP_ID
+        sync: false
+      - key: ADZUNA_APP_KEY
+        sync: false
+  - type: web
+    name: resumeai-frontend
+    env: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        sync: false

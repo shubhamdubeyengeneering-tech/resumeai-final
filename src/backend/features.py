@@ -461,44 +461,6 @@ QUESTION_BANK_LOCALIZED = {
             'Kaunsi skill improve karne se aapke career par sabse bada positive impact padega?',
             'Apne real experience ke evidence ke basis par aap strong candidate kyun hain?'
         ]
-    },
-    'Hinglish': {
-        'software': [
-            'Apne resume ka koi ek project walk me through karo. Kaunsi problem solve ki aur tumne personally kya build kiya?',
-            'Agar feature local par work kare but production mein fail ho jaye, to tum investigate kaise karoge?',
-            'Kisi technical decision ke baare mein batao jo tumne liya aur usmein kya trade-off consider kiya?',
-            'Kisi feature ko release karne se pehle tum testing kaise karoge?',
-            'Aisa example batao jahan tumne performance, reliability ya user experience improve kiya.',
-            'Kisi non-technical teammate ko technical concept simple way mein kaise explain karoge?',
-            'Kisi bug ya mistake ka example batao aur usse kya learn kiya?',
-            'Jab multiple tasks urgent hon, to tum priority kaise decide karoge?',
-            'Is role ke liye tum apni kaunsi skill sabse zyada improve karna chahte ho?',
-            'Tumhare genuine experience ke basis par team ko tumhe kyun choose karna chahiye?'
-        ],
-        'data': [
-            'Apne resume ke kisi analysis ya data project ko walk me through karo. Tum kis question ka answer find kar rahe the?',
-            'Missing, inconsistent ya duplicate data ko tum kaise handle karoge?',
-            'Kisi feature ki success measure karne ke liye tum kaunsa metric choose karoge aur kyun?',
-            'Unexpected result ko stakeholder ko tum kaise explain karoge?',
-            'Aisa time batao jab tumhare analysis ne kisi decision ya recommendation ko change kiya.',
-            'Tum kaise validate karoge ki analysis misleading nahi hai?',
-            'Agar do data sources ke results disagree karein to tum kya karoge?',
-            'Apne findings ki uncertainty ko tum kaise communicate karoge?',
-            'Is role ke liye tum kaunsi analytical skill strengthen karna chahte ho?',
-            'Sirf apne demonstrated experience ke basis par tum is role ke liye good fit kyun ho?'
-        ],
-        'default': [
-            'Apne baare mein batao aur abhi tum kis career direction mein jaana chahte ho?',
-            'Resume se koi ek project ya experience choose karo aur apna contribution explain karo.',
-            'Kisi challenging problem ka example batao aur tumne use kaise approach kiya?',
-            'Koi new skill seekhne ke liye tum usually kya approach follow karte ho?',
-            'Kisi person ya team ke saath important kaam complete karne ka example batao.',
-            'Kis achievement par tumhe sabse zyada proud feel hota hai aur kyun?',
-            'Kisi mistake ya setback ka example batao aur usse kya learn kiya?',
-            'Jab multiple deadlines hon, to tum priorities kaise set karte ho?',
-            'Kaunsi skill improve karne se tumhare career mein sabse bada difference aa sakta hai?',
-            'Apne real experience ke evidence ke basis par tum strong candidate kyun ho?'
-        ]
     }
 }
 
@@ -511,6 +473,8 @@ def question_bank_for(role: str, language: str = 'English'):
         key = 'data'
     else:
         key = 'default'
+    if language not in {'English', 'Hindi'}:
+        language = 'English'
     bank = QUESTION_BANK_LOCALIZED.get(language, QUESTION_BANK_LOCALIZED['English'])
     return bank[key]
 
@@ -526,7 +490,7 @@ def _mock_ai(prompt: str):
         response = client.models.generate_content(
             model=os.getenv('RESUMEAI_MOCK_MODEL', 'gemini-3.7-flash'),
             contents=prompt,
-            config=types.GenerateContentConfig(temperature=0.35, response_mime_type='application/json')
+            config=types.GenerateContentConfig(temperature=0.35, response_mime_type='application/json', thinking_config=types.ThinkingConfig(thinking_level='low'))
         )
         raw = (response.text or '').strip()
         if raw.startswith('```'):
@@ -618,7 +582,7 @@ def _job_match(job: dict, profile: dict, search: str = '') -> int:
 
 def _answer_quality(answer: str, question: str = ''):
     text = re.sub(r'\s+', ' ', (answer or '').strip())
-    # Support English, Hindi/Devanagari and Hinglish instead of silently
+    # Support English and Hindi instead of silently
     # treating non-Latin answers as empty/meaningless.
     words = re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿ]+(?:['’][A-Za-zÀ-ÖØ-öø-ÿ]+)?|[\u0900-\u097F]+", text.lower())
     if not words:
@@ -721,9 +685,6 @@ def _resume_topic_question(role: str, goal: str, language: str, resume_text: str
         if language == 'Hindi':
             candidates += [f'आपके रिज्यूमे में "{topic}" का उल्लेख है। इस प्रोजेक्ट में आपने व्यक्तिगत रूप से क्या बनाया और सबसे बड़ी चुनौती क्या थी?',
                            f'आपके "{topic}" प्रोजेक्ट का इस लक्ष्य ({goal_text}) से क्या संबंध है, और इसमें आपकी सबसे महत्वपूर्ण भूमिका क्या थी?']
-        elif language == 'Hinglish':
-            candidates += [f'Tumhare resume mein "{topic}" project hai. Ismein tumne personally kya build kiya aur sabse challenging part kya tha?',
-                           f'"{topic}" project tumhare target goal ({goal_text}) ko kaise support karta hai, aur tumhara most important contribution kya tha?']
         else:
             candidates += [f'Your resume lists "{topic}". What did you personally build in this project, and what was the biggest challenge you solved?',
                            f'How does your "{topic}" project support your target goal ({goal_text}), and what was your most important contribution?']
@@ -731,8 +692,6 @@ def _resume_topic_question(role: str, goal: str, language: str, resume_text: str
         skill = skills[0][:60]
         if language == 'Hindi':
             candidates.append(f'आपके रिज्यूमे में {skill} कौशल दिखता है। आपने इसे वास्तविक काम या प्रोजेक्ट में कहाँ इस्तेमाल किया है?')
-        elif language == 'Hinglish':
-            candidates.append(f'Tumhare resume mein {skill} skill mention hai. Tumne ise kisi real project ya work mein kahan use kiya hai?')
         else:
             candidates.append(f'Your resume mentions {skill}. Where have you actually used this skill in a project, internship or work?')
     return next((q for q in candidates if q.lower() not in used and _mock_language_ok(q, language)), '')
@@ -786,8 +745,6 @@ def _mock_language_ok(text: str, language: str) -> bool:
         devanagari = len(re.findall(r'[\u0900-\u097F]', value))
         letters = len(re.findall(r'[A-Za-z\u0900-\u097F]', value))
         return devanagari >= 5 and devanagari / max(1, letters) >= 0.30
-    if language == 'Hinglish':
-        return not bool(re.search(r'[\u0900-\u097F]', value)) and bool(re.search(r'[A-Za-z]', value))
     return not bool(re.search(r'[\u0900-\u097F]', value))
 
 def _localized_mock_fallback(language: str, kind: str):
@@ -797,12 +754,6 @@ def _localized_mock_fallback(language: str, kind: str):
             'strengths': 'आपने प्रश्न का उत्तर देने का प्रयास किया।',
             'improvement': 'अपने वास्तविक अनुभव, आपने क्या किया और उसका परिणाम स्पष्ट रूप से बताएं।',
             'final': 'इंटरव्यू पूरा हुआ। प्रत्येक उत्तर की प्रतिक्रिया देखें और कमजोर क्षेत्रों पर अभ्यास करें.'
-        },
-        'Hinglish': {
-            'feedback': 'Answer ko aur clear, relevant aur example-based banao.',
-            'strengths': 'Tumne question ko answer karne ki genuine attempt ki.',
-            'improvement': 'Apna real experience, tumne kya kiya aur kya result mila, clearly explain karo.',
-            'final': 'Interview complete hua. Har answer ka feedback dekho aur weak areas par practice karo.'
         },
         'English': {
             'feedback': 'Make the answer more specific, relevant and evidence-based.',
@@ -816,26 +767,18 @@ def _localized_mock_fallback(language: str, kind: str):
 
 @features_router.post('/mocks/start')
 def start_mock(data: MockStart, user=Depends(get_current_user)):
-    language = data.language if data.language in {'English', 'Hindi', 'Hinglish'} else 'English'
+    language = data.language if data.language in {'English', 'Hindi'} else 'English'
     questions = question_bank_for(data.role, language)
     resume_text = _resume_context(data.resume_job_id, user['id'])
-    prompt = f'''You are ResumeAI's expert AI interviewer. Start a 10-question adaptive mock interview.
-
-TARGET ROLE: {data.role.strip()}
-TARGET GOAL: {data.target_goal.strip() if data.target_goal.strip() else data.role.strip()}
-LANGUAGE: {language}
-
-The candidate's resume is the primary evidence. Generate exactly ONE first question. Make it specific to the target role/goal and the actual resume. Prefer a real project, skill, education item, internship or experience visible in the resume. Never invent a fact. Avoid generic questions when the resume contains useful evidence.
-
-LANGUAGE RULE: English = professional English. Hindi = natural Hindi in Devanagari. Hinglish = natural Roman-script Hinglish.
-Return JSON only: {{"question":"..."}}.
-
-RESUME:
-{resume_text}'''
-    ai = _mock_ai(prompt)
-    question = str((ai or {}).get('question') or '').strip()
-    if not _mock_language_ok(question, language):
-        question = ''
+    # First question is intentionally local and immediate. The interview must not
+    # wait on a Gemini request, especially when no resume is uploaded.
+    prior_questions = set()
+    question = _resume_topic_question(data.role, data.target_goal, language, resume_text, prior_questions)
+    if not question:
+        question = _goal_specific_fallback(data.role, data.target_goal, language, resume_text, prior_questions)
+    if not question or not _mock_language_ok(question, language):
+        unused = questions
+        question = unused[int(time.time()) % len(unused)]
     conn = db()
     prior = conn.execute('SELECT question FROM mock_interview_turns t JOIN mock_interview_sessions s ON s.id=t.session_id WHERE s.user_id=? AND s.role=? AND s.language=? AND t.question_number=1 ORDER BY t.id DESC LIMIT 20', (user['id'], data.role.strip(), language)).fetchall()
     prior_questions = {str(r['question']).strip().lower() for r in prior}
@@ -884,7 +827,6 @@ Evaluate the candidate's answer fairly. Use only the answer and resume evidence.
 IMPORTANT LANGUAGE RULE: Write ALL user-visible question, feedback, strengths, improvement and final summary text entirely in the session's selected language. Never switch to English just because the resume is in English:
 - English = natural professional English.
 - Hindi = natural Hindi in Devanagari script; do not use English sentences.
-- Hinglish = natural Roman-script Hinglish; mix Hindi and English naturally, but do not use Devanagari.
 Then create the next question only if this is not question 10. The next question must adapt to the candidate's answer, resume and target role. It MUST be different from every question in PREVIOUS QUESTIONS and should test a new competency. Prefer a resume-specific topic when evidence exists.
 Return JSON only with fields: score (integer 0-100), relevance_score (integer 0-100), feedback (string), strengths (string), improvement (string), next_question (string or empty), final_summary (string or empty), final_score (number or null).
 SCORING RULE: Relevance is mandatory. If the answer does not actually address the current question at all, set relevance_score below 15 and score 0. If relevance is only weak (15-49), score no higher than 45. Do not award a high score merely because the answer is long, fluent, or grammatically correct. Evaluate both typed and spoken answers by their actual transcribed content.
@@ -892,12 +834,10 @@ For question 10, next_question must be empty and final_summary/final_score must 
 TARGET ROLE: {session['role']}
 TARGET GOAL: {session['target_goal'] or session['role']}
 RESUME:\n{resume_text}\n\nPREVIOUS QUESTIONS:\n{previous_questions}\n\nPREVIOUS ANSWERS:\n{history}\n\nCURRENT QUESTION:\n{turn['question']}\n\nCURRENT ANSWER:\n{answer}'''
-    ai = _mock_ai(prompt)
+    ai = _mock_ai(prompt) if resume_text else None
     if not ai:
         if session['language'] == 'Hindi':
             ai = {'score': 35, 'relevance_score': 40, 'feedback': 'उत्तर में कुछ उपयोगी जानकारी है, लेकिन इसे वर्तमान प्रश्न से अधिक सीधे जोड़ने की जरूरत है।', 'strengths': 'आपने प्रश्न का उत्तर देने का प्रयास किया।', 'improvement': 'उत्तर को प्रश्न पर केंद्रित रखें और अपने वास्तविक उदाहरण या अनुभव को स्पष्ट रूप से समझाएँ।'}
-        elif session['language'] == 'Hinglish':
-            ai = {'score': 35, 'relevance_score': 40, 'feedback': 'Answer mein useful information hai, lekin ise current question se aur directly connect karna chahiye.', 'strengths': 'Tumne question ko answer karne ki genuine attempt ki.', 'improvement': 'Question ko directly address karo aur apna real example ya experience clearly explain karo.'}
         else:
             ai = _fallback_evaluation(answer, qnum, turn['question'])
     # Gemini can occasionally ignore a language instruction. Never expose
@@ -927,12 +867,6 @@ RESUME:\n{resume_text}\n\nPREVIOUS QUESTIONS:\n{previous_questions}\n\nPREVIOUS 
             'weak': ('उत्तर में कुछ संबंधित जानकारी है, लेकिन प्रश्न से इसका संबंध कमजोर है।', 'आपने प्रश्न का प्रयास किया है।', 'पहले प्रश्न के मुख्य हिस्से को सीधे address करें और फिर अतिरिक्त विवरण दें।'),
             'detail': ('उत्तर में अधिक प्रासंगिक विवरण की जरूरत है।', 'आपने उत्तर देने की कोशिश की।', 'बताएँ कि आपने क्या किया, क्यों किया और उसका परिणाम क्या रहा।')
         },
-        'Hinglish': {
-            'short': ('Answer bahut short hai, isliye ise properly evaluate nahi kiya ja sakta.', 'Answer mein enough meaningful detail nahi hai.', 'Question ka direct answer do aur possible ho to apna real example share karo.'),
-            'irrelevant': ('Answer current question ko closely address nahi karta.', 'Tumne answer dene ki attempt ki, but focus question par hona chahiye.', 'Pehle exact question ka answer do aur unrelated information hatao.'),
-            'weak': ('Answer mein kuch relevant content hai, but question se connection weak hai.', 'Tumne question attempt kiya hai.', 'Question ke main point ko directly address karo, phir extra detail add karo.'),
-            'detail': ('Answer ko aur relevant detail ki zarurat hai.', 'Tumne answer dene ki attempt ki.', 'Explain karo ki tumne kya kiya, kyun kiya aur result kya raha.')
-        }
     }.get(session['language'])
     if quality_score <= 10:
         score = 0 if quality_score == 0 else quality_score

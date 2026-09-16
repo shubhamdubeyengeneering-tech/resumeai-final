@@ -35,7 +35,7 @@ const UI_TRANSLATIONS = {
   "Target role": "लक्षित भूमिका", "Target goal": "लक्षित लक्ष्य", "Interview language": "इंटरव्यू की भाषा", "Interview mode": "इंटरव्यू मोड",
   "Start 10-Question Interview →": "10 प्रश्नों का इंटरव्यू शुरू करें →", "End Interview": "इंटरव्यू समाप्त करें",
   "Send Answer →": "उत्तर भेजें →", "Next AI Question →": "अगला एआई प्रश्न →", "Start New Interview →": "नया इंटरव्यू शुरू करें →",
-  "English": "अंग्रेज़ी", "Hindi": "हिंदी", "Hinglish": "हिंग्लिश",
+  "English": "अंग्रेज़ी", "Hindi": "हिंदी",
   "Jobs": "जॉब्स", "Find jobs that fit your resume": "अपने रिज्यूमे के अनुसार जॉब खोजें", "Search Jobs": "जॉब खोजें",
   "Search role, skill or keyword": "भूमिका, स्किल या कीवर्ड खोजें", "Smart job filters": "स्मार्ट जॉब फ़िल्टर", "Apply Filters": "फ़िल्टर लगाएं", "Clear": "साफ़ करें",
   "Profile": "प्रोफ़ाइल", "Edit Profile": "प्रोफ़ाइल संपादित करें", "Cancel Edit": "एडिट रद्द करें", "Save Profile →": "प्रोफ़ाइल सेव करें →",
@@ -104,6 +104,249 @@ Object.assign(UI_TRANSLATIONS, {
   "ResumeAI Premium": "ResumeAI प्रीमियम", "Coming Soon": "जल्द आ रहा है", "Advanced career tools and future premium features.": "उन्नत करियर टूल्स और भविष्य के प्रीमियम फीचर्स।",
   "No notifications yet.": "अभी कोई सूचना नहीं है।", "Mark all read": "सभी को पढ़ा हुआ करें", "Open Full Profile →": "पूरी प्रोफ़ाइल खोलें →",
 });
+Object.assign(UI_TRANSLATIONS, {
+  "AI CAREER MATCHING": "एआई करियर मैचिंग",
+  "AI Interview Voice": "एआई इंटरव्यू आवाज़",
+  "AI Preferences": "एआई प्राथमिकताएं",
+  "AI Career Intelligence": "एआई करियर इंटेलिजेंस",
+  "AI Career Advisor": "एआई करियर सलाहकार",
+  "AI Career Chat": "एआई करियर चैट",
+  "AI Interviewer": "एआई इंटरव्यूअर",
+  "AI + Human Text": "एआई + मानव टेक्स्ट",
+  "AI Voice + Human Voice": "एआई आवाज़ + मानव आवाज़",
+  "Adaptive mock interviews": "एडैप्टिव मॉक इंटरव्यू",
+  "Evidence-aware suggestions": "प्रमाण-आधारित सुझाव",
+  "Resume-grounded feedback": "रिज्यूमे-आधारित फीडबैक",
+  "Multilingual chat": "बहुभाषी चैट",
+  "Career Resources": "करियर संसाधन",
+  "Career readiness": "करियर तैयारी",
+  "Career Intelligence": "करियर इंटेलिजेंस",
+  "Career Tracker": "करियर ट्रैकर",
+  "RESUME HEALTH": "रिज्यूमे हेल्थ",
+  "OVERALL SCORE": "कुल स्कोर",
+  "Strong Points": "मजबूत पक्ष",
+  "Areas to Improve": "सुधार के क्षेत्र",
+  "Next Steps": "अगले कदम",
+  "Quick Tip": "त्वरित सुझाव",
+  "RESUMEAI AI INTERVIEWER": "RESUMEAI एआई इंटरव्यूअर",
+  "RESUMEAI SECURITY": "RESUMEAI सुरक्षा",
+  "RESUMEAI FUTURE LAB": "RESUMEAI फ्यूचर लैब",
+  "CONTROL CENTER": "कंट्रोल सेंटर",
+  "WORKSPACE": "वर्कस्पेस",
+  "CAREER IDENTITY": "करियर पहचान",
+  "CAREER TRACKER": "करियर ट्रैकर",
+  "LIVE AI INTERVIEW": "लाइव एआई इंटरव्यू",
+  "LIVE": "लाइव",
+  "ANSWER RECORDED": "उत्तर रिकॉर्ड हो गया",
+  "RESUMEAI": "RESUMEAI",
+  "Resume": "रिज्यूमे",
+  "Resume Analysis": "रिज्यूमे विश्लेषण",
+  "Resume analysis": "रिज्यूमे विश्लेषण",
+  "Resume Analyzer": "रिज्यूमे विश्लेषक",
+  "Resume Preferences": "रिज्यूमे प्राथमिकताएं",
+  "Supported formats": "समर्थित फॉर्मेट",
+  "Analysis style": "विश्लेषण शैली",
+  "Enhancement": "एन्हांसमेंट",
+  "Evidence-based and honest scoring": "प्रमाण-आधारित और ईमानदार स्कोरिंग",
+  "Job Ready.": "जॉब के लिए तैयार।",
+  "Job ready": "जॉब के लिए तैयार",
+  "Needs work": "सुधार की जरूरत",
+  "Entry level": "एंट्री लेवल",
+  "Mid level": "मिड लेवल",
+  "Senior level": "सीनियर लेवल",
+  "Any country": "कोई भी देश",
+  "Any experience": "कोई भी अनुभव",
+  "Any location": "कोई भी स्थान",
+  "Any resume skill": "कोई भी रिज्यूमे स्किल",
+  "All matching roles": "सभी मैचिंग भूमिकाएं",
+  "Smart job filters": "स्मार्ट जॉब फ़िल्टर",
+  "Role, skill, country, work mode and experience.": "भूमिका, स्किल, देश, काम का तरीका और अनुभव।",
+  "Live job listings may change or expire. Match scores are based on evidence detected in the analyzed resume.": "लाइव जॉब लिस्टिंग बदल या समाप्त हो सकती हैं। मैच स्कोर विश्लेषित रिज्यूमे में मिले प्रमाण पर आधारित हैं।",
+  "Find jobs that fit your resume": "अपने रिज्यूमे के अनुसार जॉब खोजें",
+  "Search Jobs": "जॉब खोजें",
+  "Searching...": "खोज रहे हैं...",
+  "No matching jobs": "कोई मैचिंग जॉब नहीं",
+  "Try another role, skill or filter.": "दूसरी भूमिका, स्किल या फ़िल्टर आज़माएं।",
+  "View Job →": "जॉब देखें →",
+  "Open Job Posting ↗": "जॉब पोस्टिंग खोलें ↗",
+  "Apply Filters": "फ़िल्टर लगाएं",
+  "Clear": "साफ़ करें",
+  "Company": "कंपनी",
+  "Role": "भूमिका",
+  "Status": "स्थिति",
+  "Job URL": "जॉब URL",
+  "Notes": "नोट्स",
+  "Offer": "ऑफर",
+  "Rejected": "अस्वीकृत",
+  "Withdrawn": "वापस लिया गया",
+  "Applied": "आवेदन किया",
+  "Applications": "आवेदन",
+  "Application timeline": "आवेदन टाइमलाइन",
+  "Application tracker": "आवेदन ट्रैकर",
+  "Add an opportunity": "एक अवसर जोड़ें",
+  "Add your first opportunity and start building your career pipeline.": "अपना पहला अवसर जोड़ें और करियर पाइपलाइन बनाना शुरू करें।",
+  "Your application tracker is ready": "आपका आवेदन ट्रैकर तैयार है",
+  "One clean place to manage every opportunity and see your progress.": "हर अवसर को संभालने और अपनी प्रगति देखने की एक साफ जगह।",
+  "Save a job you want to track.": "जिस जॉब को ट्रैक करना चाहते हैं उसे सेव करें।",
+  "Your saved opportunities appear here.": "आपके सेव किए गए अवसर यहां दिखाई देंगे।",
+  "Profile": "प्रोफ़ाइल",
+  "Professional profile": "प्रोफ़ेशनल प्रोफ़ाइल",
+  "Edit Profile": "प्रोफ़ाइल संपादित करें",
+  "Cancel Edit": "एडिट रद्द करें",
+  "Save Profile →": "प्रोफ़ाइल सेव करें →",
+  "Full Name": "पूरा नाम",
+  "Email Address": "ईमेल पता",
+  "Phone Number": "फ़ोन नंबर",
+  "Location": "स्थान",
+  "Professional Headline": "प्रोफ़ेशनल हेडलाइन",
+  "Professional Summary": "प्रोफ़ेशनल सारांश",
+  "Skills & Technologies": "स्किल्स और टेक्नोलॉजी",
+  "Profile photo": "प्रोफ़ाइल फोटो",
+  "Change Photo": "फोटो बदलें",
+  "Remove Photo": "फोटो हटाएं",
+  "Original photo preserved when available": "उपलब्ध होने पर मूल फोटो सुरक्षित रखी जाएगी",
+  "Choose any JPG, PNG or WEBP image. ResumeAI stores a resized copy for your profile.": "कोई भी JPG, PNG या WEBP इमेज चुनें। ResumeAI प्रोफ़ाइल के लिए उसका छोटा कॉपी सेव करता है।",
+  "Account": "अकाउंट",
+  "Settings": "सेटिंग्स",
+  "Appearance": "दिखावट",
+  "Notifications": "सूचनाएं",
+  "Security": "सुरक्षा",
+  "Website Lock": "वेबसाइट लॉक",
+  "Website language": "वेबसाइट की भाषा",
+  "Email notifications": "ईमेल सूचनाएं",
+  "Weekly career summary": "साप्ताहिक करियर सारांश",
+  "AI Preferences": "एआई प्राथमिकताएं",
+  "Personal details and account information": "व्यक्तिगत विवरण और अकाउंट जानकारी",
+  "Theme and display preferences": "थीम और डिस्प्ले प्राथमिकताएं",
+  "Email and weekly updates": "ईमेल और साप्ताहिक अपडेट",
+  "Resume upload and analysis": "रिज्यूमे अपलोड और विश्लेषण",
+  "AI assistant and suggestions": "एआई असिस्टेंट और सुझाव",
+  "Password and session management": "पासवर्ड और सेशन प्रबंधन",
+  "Light": "लाइट",
+  "Dark": "डार्क",
+  "Clean bright workspace": "साफ़ और उजला वर्कस्पेस",
+  "Low-light focused workspace": "कम रोशनी के लिए आरामदायक वर्कस्पेस",
+  "Choose how ResumeAI looks on your device.": "अपने डिवाइस पर ResumeAI की दिखावट चुनें।",
+  "Theme changes apply immediately.": "थीम तुरंत लागू होती है।",
+  "Choose which career updates you want.": "चुनें कि आपको कौन से करियर अपडेट चाहिए।",
+  "Important account and feature updates.": "महत्वपूर्ण अकाउंट और फीचर अपडेट।",
+  "Control how AI Career Chat and AI tools respond.": "AI Career Chat और AI टूल्स के जवाब का तरीका नियंत्रित करें।",
+  "Controls for your resume workflow.": "अपने रिज्यूमे वर्कफ़्लो को नियंत्रित करें।",
+  "Change the language of the ResumeAI interface.": "ResumeAI इंटरफेस की भाषा बदलें।",
+  "English": "अंग्रेज़ी",
+  "Hindi": "हिंदी",
+  "Male voice": "पुरुष आवाज़",
+  "Female voice": "महिला आवाज़",
+  "AI Interview Voice": "एआई इंटरव्यू आवाज़",
+  "Choose whether the AI interviewer speaks and which voice style it uses.": "चुनें कि एआई इंटरव्यूअर बोले या नहीं और कौन सी आवाज़ इस्तेमाल करे।",
+  "Test Voice": "आवाज़ टेस्ट करें",
+  "▶ Test Voice": "▶ आवाज़ टेस्ट करें",
+  "Create Account": "अकाउंट बनाएं",
+  "Continue with Google": "Google के साथ जारी रखें",
+  "Login": "लॉगिन",
+  "Logout": "लॉगआउट",
+  "Login / Sign Up": "लॉगिन / साइन अप",
+  "My Profile": "मेरी प्रोफ़ाइल",
+  "My Applications": "मेरे आवेदन",
+  "Mock Interviews": "मॉक इंटरव्यू",
+  "Interview practice": "इंटरव्यू अभ्यास",
+  "Target role": "लक्षित भूमिका",
+  "Target goal": "लक्षित लक्ष्य",
+  "Interview language": "इंटरव्यू की भाषा",
+  "Interview mode": "इंटरव्यू मोड",
+  "Start 10-Question Interview →": "10 प्रश्नों का इंटरव्यू शुरू करें →",
+  "End Interview": "इंटरव्यू समाप्त करें",
+  "Next AI Question →": "अगला एआई प्रश्न →",
+  "Start New Interview →": "नया इंटरव्यू शुरू करें →",
+  "Send Answer →": "उत्तर भेजें →",
+  "Your answer": "आपका उत्तर",
+  "Your answer has been saved for the final interview evaluation.": "आपका उत्तर अंतिम इंटरव्यू मूल्यांकन के लिए सेव हो गया है।",
+  "No score is shown yet. ResumeAI will evaluate all answers together after Question 10.": "अभी कोई स्कोर नहीं दिखाया गया है। ResumeAI प्रश्न 10 के बाद सभी उत्तरों का एक साथ मूल्यांकन करेगा।",
+  "Mock interview complete.": "मॉक इंटरव्यू पूरा हो गया।",
+  "What went wrong / evaluation": "क्या गलत हुआ / मूल्यांकन",
+  "Strength:": "मजबूती:",
+  "Improve:": "सुधार:",
+  "Your journey to a better career is just getting started!": "बेहतर करियर की आपकी यात्रा अभी शुरू हुई है!",
+  "A compact summary of your ResumeAI activity.": "आपकी ResumeAI गतिविधि का संक्षिप्त सारांश।",
+  "Live account data": "लाइव अकाउंट डेटा",
+  "Average Mock Score": "औसत मॉक स्कोर",
+  "Match Potential": "मैच क्षमता",
+  "View Career Analytics": "करियर एनालिटिक्स देखें",
+  "View Full Report →": "पूरी रिपोर्ट देखें →",
+  "View Score Details ↓": "स्कोर विवरण देखें ↓",
+  "Hide Score Details ↑": "स्कोर विवरण छिपाएं ↑",
+  "Why this score?": "यह स्कोर क्यों?",
+  "Analyze first": "पहले विश्लेषण करें",
+  "Analyze a resume to generate personalized next steps.": "व्यक्तिगत अगले कदम पाने के लिए पहले रिज्यूमे का विश्लेषण करें।",
+  "Review your resume score and section feedback.": "अपने रिज्यूमे स्कोर और सेक्शन फीडबैक की समीक्षा करें।",
+  "Use AI Career Advisor for career guidance.": "करियर मार्गदर्शन के लिए एआई करियर सलाहकार का उपयोग करें।",
+  "Choose Your Resume Style": "अपना रिज्यूमे स्टाइल चुनें",
+  "Pick a design first. The selected version can then be downloaded as a PDF.": "पहले डिजाइन चुनें। चुना गया वर्जन PDF के रूप में डाउनलोड किया जा सकता है।",
+  "Professional": "प्रोफेशनल",
+  "Executive Two-Column": "एग्जीक्यूटिव टू-कॉलम",
+  "Modern Sidebar": "मॉडर्न साइडबार",
+  "Minimal ATS": "मिनिमल ATS",
+  "Existing ResumeAI Style": "मौजूदा ResumeAI स्टाइल",
+  "Inspired by your sample": "आपके सैंपल से प्रेरित",
+  "Bold & structured": "बोल्ड और स्ट्रक्चर्ड",
+  "Clean & recruiter-friendly": "क्लीन और रिक्रूटर-फ्रेंडली",
+  "Selected": "चुना गया",
+  "Select": "चुनें",
+  "Preview:": "प्रीव्यू:",
+  "Preparing PDF...": "PDF तैयार हो रही है...",
+  "⬇ Download Selected PDF": "⬇ चुना गया PDF डाउनलोड करें",
+  "Enhance My Resume": "मेरा रिज्यूमे बेहतर करें",
+  "Build a more professional resume": "एक अधिक प्रोफेशनल रिज्यूमे बनाएं",
+  "Professional formatting": "प्रोफेशनल फॉर्मेटिंग",
+  "ATS-friendly structure": "ATS-फ्रेंडली स्ट्रक्चर",
+  "Stronger wording": "बेहतर शब्दावली",
+  "Clean bullet points": "क्लीन बुलेट पॉइंट्स",
+  "Original facts preserved": "मूल तथ्य सुरक्षित",
+  "Photo preserved when available": "उपलब्ध होने पर फोटो सुरक्षित",
+  "Enhance Resume →": "रिज्यूमे बेहतर करें →",
+  "Creating Resume...": "रिज्यूमे बनाया जा रहा है...",
+  "Checking Resume...": "रिज्यूमे चेक किया जा रहा है...",
+  "Create Enhanced Resume": "बेहतर रिज्यूमे बनाएं",
+  "Skip Photo & Enhance": "फोटो छोड़ें और बेहतर करें",
+  "Add Photo": "फोटो जोड़ें",
+  "Career Resources": "करियर संसाधन",
+  "What we are building next.": "हम आगे क्या बना रहे हैं।",
+  "🚀 Coming Soon": "🚀 जल्द आ रहा है",
+  "Coming Soon": "जल्द आ रहा है",
+  "Premium": "प्रीमियम",
+  "ResumeAI Premium": "ResumeAI प्रीमियम",
+  "Mark all read": "सभी को पढ़ा हुआ करें",
+  "No notifications yet.": "अभी कोई सूचना नहीं है।",
+  "Delete": "डिलीट",
+  "Cancel": "रद्द करें",
+  "Complete": "पूरा",
+  "Continue": "जारी रखें",
+  "Enable Lock": "लॉक चालू करें",
+  "Disable Lock": "लॉक बंद करें",
+  "Turn Off Lock": "लॉक बंद करें",
+  "Create Website PIN": "वेबसाइट PIN बनाएं",
+  "Change PIN": "PIN बदलें",
+  "Remove PIN": "PIN हटाएं",
+  "Workspace Locked": "वर्कस्पेस लॉक है",
+  "Unlock ResumeAI": "ResumeAI अनलॉक करें",
+  "Enter the PIN you created in Settings → Security to continue.": "जारी रखने के लिए Settings → Security में बनाया गया PIN दर्ज करें।",
+  "Your PIN is never displayed or included in normal settings auto-save.": "आपका PIN कभी प्रदर्शित नहीं होता और सामान्य सेटिंग्स ऑटो-सेव में शामिल नहीं होता।",
+  "Choose a 4-12 digit PIN. It is saved only after you click Set PIN.": "4-12 अंकों का PIN चुनें। यह केवल Set PIN दबाने के बाद सेव होगा।",
+  "Your identity and account information.": "आपकी पहचान और अकाउंट की जानकारी।",
+  "Open Full Profile →": "पूरी प्रोफ़ाइल खोलें →",
+  "Workspace active": "वर्कस्पेस सक्रिय है",
+  "✓ Workspace active": "✓ वर्कस्पेस सक्रिय है",
+  "✓ All changes auto-save automatically after a short delay.": "✓ सभी बदलाव थोड़ी देर बाद अपने आप सेव हो जाते हैं।",
+  "Build Better Resumes.": "बेहतर रिज्यूमे बनाएं।",
+  "Get Better Jobs.": "बेहतर जॉब पाएं।",
+  "Your score reflects resume structure, content quality, evidence and ATS-related factors detected in the uploaded resume.": "आपका स्कोर अपलोड किए गए रिज्यूमे में मिली संरचना, कंटेंट गुणवत्ता, प्रमाण और ATS से जुड़े कारकों पर आधारित है।",
+  "Resume writing, interview preparation and job-search guidance will be added here.": "रिज्यूमे लेखन, इंटरव्यू तैयारी और जॉब खोज मार्गदर्शन यहां जोड़ा जाएगा।",
+  "Advanced career tools and future premium features.": "उन्नत करियर टूल्स और भविष्य के प्रीमियम फीचर्स।",
+  "These ideas are intentionally marked Coming Soon. They are not fake unlocks and will only appear as real features when implemented.": "इन विचारों को जानबूझकर जल्द आने वाला बताया गया है। ये नकली अनलॉक नहीं हैं और वास्तविक रूप से लागू होने पर ही उपलब्ध होंगे।",
+  "Use measurable achievements and clear section headings when your resume supports them.": "जहां आपका रिज्यूमे समर्थन करता हो, वहां मापने योग्य उपलब्धियां और स्पष्ट सेक्शन हेडिंग इस्तेमाल करें।",
+  "ResumeAI will never treat a suggestion as a fact from your resume.": "ResumeAI किसी सुझाव को आपके रिज्यूमे के तथ्य के रूप में प्रस्तुत नहीं करेगा।",
+});
+
 const UI_TRANSLATIONS_REVERSE = Object.fromEntries(Object.entries(UI_TRANSLATIONS).map(([en, hi]) => [hi, en]));
 function translateUiText(value, language) {
   if (language !== "Hindi") return UI_TRANSLATIONS_REVERSE[value] || value;
@@ -121,43 +364,42 @@ function installUiLanguageObserver(language) {
   const root = document.body;
   if (!root) return () => {};
 
+  let applying = false;
+  let observer = null;
+  const timers = [];
+
   const update = () => {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-    const nodes = [];
-    while (walker.nextNode()) nodes.push(walker.currentNode);
-
-    nodes.forEach(node => {
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
       const parent = node.parentElement;
-      if (!parent || ["SCRIPT", "STYLE", "NOSCRIPT"].includes(parent.tagName)) return;
+      if (!parent || ["SCRIPT", "STYLE", "NOSCRIPT"].includes(parent.tagName)) continue;
+      if (parent.closest(".resume-user-content, .ai-generated-content, [data-no-ui-translate='true']")) continue;
 
       const raw = node.nodeValue || "";
       const trimmed = raw.trim();
-      if (!trimmed || trimmed.length > 180) return;
+      if (!trimmed || trimmed.length > 220) continue;
 
       let record = UI_ORIGINAL_TEXT.get(node);
+      const reverse = UI_TRANSLATIONS_REVERSE[trimmed];
+      const direct = UI_TRANSLATIONS[trimmed];
       if (!record) {
-        record = { original: trimmed, lastRendered: trimmed };
+        record = { original: reverse || trimmed, lastRendered: trimmed };
         UI_ORIGINAL_TEXT.set(node, record);
       } else if (trimmed !== record.lastRendered) {
-        // React/navigation changed this node. The new value is the fresh English
-        // source unless it is already one of our known translations.
-        const knownHindi = UI_TRANSLATIONS[trimmed];
-        const knownEnglish = UI_TRANSLATIONS_REVERSE[trimmed];
-        if (knownEnglish) {
-          record.original = knownEnglish;
-        } else if (!knownHindi) {
-          record.original = trimmed;
-        }
+        // If React replaced this node, recover the English source from either
+        // the reverse dictionary or the new English text.
+        if (reverse) record.original = reverse;
+        else if (!direct) record.original = trimmed;
       }
 
       const translated = translateUiText(record.original, language);
-      if (translated !== trimmed) {
-        node.nodeValue = raw.replace(trimmed, translated);
-      }
+      if (translated !== trimmed) node.nodeValue = raw.replace(trimmed, translated);
       record.lastRendered = translated;
-    });
+    }
 
     root.querySelectorAll("input[placeholder], textarea[placeholder], [aria-label], [title]").forEach(el => {
+      if (el.closest(".resume-user-content, .ai-generated-content, [data-no-ui-translate='true']")) return;
       let record = UI_ORIGINAL_ATTRS.get(el);
       if (!record) {
         record = {
@@ -170,13 +412,11 @@ function installUiLanguageObserver(language) {
         };
         UI_ORIGINAL_ATTRS.set(el, record);
       }
-
       const syncAttr = (name, lastName) => {
         const current = el.getAttribute(name);
-        const last = record[lastName];
-        if (current !== last) {
-          const knownEnglish = current ? UI_TRANSLATIONS_REVERSE[current] : null;
-          if (knownEnglish) record[name] = knownEnglish;
+        if (current !== record[lastName]) {
+          const reverseAttr = current ? UI_TRANSLATIONS_REVERSE[current] : null;
+          if (reverseAttr) record[name] = reverseAttr;
           else if (current && !UI_TRANSLATIONS[current]) record[name] = current;
         }
         const original = record[name];
@@ -184,56 +424,56 @@ function installUiLanguageObserver(language) {
         else if (current === null) el.removeAttribute(name);
         record[lastName] = el.getAttribute(name);
       };
-
       syncAttr("placeholder", "lastPlaceholder");
-      syncAttr("aria-label", "lastAria");
+      syncAttr("aria", "lastAria");
       syncAttr("title", "lastTitle");
     });
   };
 
-  // Disconnect while changing DOM so our own translations can never trigger an
-  // endless MutationObserver loop. Re-observe after the update for React route
-  // changes and newly mounted page content.
-  let applying = false;
-  let observer = null;
   const safeUpdate = () => {
     if (applying) return;
     applying = true;
     if (observer) observer.disconnect();
-    try {
-      update();
-    } finally {
+    try { update(); }
+    finally {
       applying = false;
-      if (observer) {
-        observer.observe(root, {
-          childList: true,
-          subtree: true,
-          characterData: true,
-          attributes: true,
-          attributeFilter: ["placeholder", "aria-label", "title"],
-        });
-      }
+      if (observer) observer.observe(root, {
+        childList: true, subtree: true, characterData: true,
+        attributes: true, attributeFilter: ["placeholder", "aria-label", "title"],
+      });
     }
   };
 
   observer = new MutationObserver(() => safeUpdate());
   safeUpdate();
-  return () => observer && observer.disconnect();
+  // React pages can mount nested content a little after the parent effect.
+  // A few bounded passes make language switching deterministic without a
+  // permanent polling loop.
+  [0, 40, 150, 400, 900].forEach(delay => timers.push(window.setTimeout(safeUpdate, delay)));
+
+  return () => {
+    timers.forEach(t => window.clearTimeout(t));
+    if (observer) observer.disconnect();
+  };
 }
 
 function getGuestId() {
+  // Guest workspaces are device/browser specific. Never use one constant fallback,
+  // otherwise browsers where localStorage is unavailable would share one profile.
+  const makeId = () => (typeof crypto !== "undefined" && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : `guest-${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
   try {
     let id = localStorage.getItem("resumeai_guest_id");
-    if (!id) {
-      id = typeof crypto !== "undefined" && crypto.randomUUID
-        ? crypto.randomUUID()
-        : `guest-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      localStorage.setItem("resumeai_guest_id", id);
-    }
+    if (!id || id === "guest-browser" || id === "guest") { id = makeId(); localStorage.setItem("resumeai_guest_id", id); }
     return id;
-  } catch {
-    return "guest-browser";
-  }
+  } catch {}
+  try {
+    let id = sessionStorage.getItem("resumeai_guest_id");
+    if (!id || id === "guest-browser" || id === "guest") { id = makeId(); sessionStorage.setItem("resumeai_guest_id", id); }
+    return id;
+  } catch {}
+  return makeId();
 }
 
 function apiAuthHeaders() {
@@ -430,7 +670,7 @@ function WorkspaceModules({ page, currentUser, onNavigate, resumeJobId, onLogout
   const [mockAnswer, setMockAnswer] = useState("");
   const [mockResult, setMockResult] = useState(null);
   const [mockNumber, setMockNumber] = useState(1);
-  const [mockLanguage, setMockLanguage] = useState("English");
+  const [mockLanguage, setMockLanguage] = useState(() => { try { return localStorage.getItem("resumeai_mock_language") === "Hindi" ? "Hindi" : "English"; } catch { return "English"; } });
   const [mockListening, setMockListening] = useState(false);
   const [mockMode, setMockMode] = useState("text");
   const [aiSpeaking, setAiSpeaking] = useState(false);
@@ -449,11 +689,12 @@ function WorkspaceModules({ page, currentUser, onNavigate, resumeJobId, onLogout
   const [appForm, setAppForm] = useState({ company: "", role: "", location: "", url: "", status: "Applied", notes: "" });
   const [profile, setProfile] = useState({ name: currentUser?.name || "", email: currentUser?.email || "", phone: "", location: "", headline: "", bio: "", skills: "", photo: "" });
   const [profileEditing, setProfileEditing] = useState(false);
-  const [settings, setSettings] = useState(() => ({ email_notifications: true, weekly_summary: true, language: "English", theme: (() => { try { const t = localStorage.getItem("resumeai_theme"); return t === "dark" ? "dark" : "light"; } catch { return "light"; } })(), voice_enabled: true, voice_gender: "female", lock_enabled: false, lock_pin: "" }));
+  const [settings, setSettings] = useState(() => ({ email_notifications: true, weekly_summary: true, language: (() => { try { return localStorage.getItem("resumeai_ui_language") === "Hindi" ? "Hindi" : "English"; } catch { return "English"; } })(), theme: (() => { try { const t = localStorage.getItem("resumeai_theme"); return t === "dark" ? "dark" : "light"; } catch { return "light"; } })(), voice_enabled: true, voice_gender: "female", lock_enabled: false, lock_pin: "" }));
   const [analytics, setAnalytics] = useState(null);
   const [premium, setPremium] = useState(null);
   const settingsHydratedRef = useRef(false);
   const settingsSaveTimerRef = useRef(null);
+  const languageHydratedRef = useRef(false);
 
   async function api(path, options = {}) {
     const response = await fetch(`${API_URL}${path}`, {
@@ -470,16 +711,28 @@ function WorkspaceModules({ page, currentUser, onNavigate, resumeJobId, onLogout
     if (!page) return;
     setMessage("");
     if (page === "applications") api("/api/applications").then(d => setApplications(d.applications || [])).catch(e => setMessage(e.message));
-    else if (page === "profile") api("/api/profile").then(d => { setProfile(prev => ({...prev, ...(d.profile || {})})); setProfileEditing(false); }).catch(e => setMessage(e.message));
+    else if (page === "profile") {
+      setProfile({ name: currentUser?.name || "", email: currentUser?.email || "", phone: "", location: "", headline: "", bio: "", skills: "", photo: "" });
+      api("/api/profile").then(d => { setProfile({ name: d?.profile?.name || currentUser?.name || "", email: d?.profile?.email || currentUser?.email || "", phone: d?.profile?.phone || "", location: d?.profile?.location || "", headline: d?.profile?.headline || "", bio: d?.profile?.bio || "", skills: d?.profile?.skills || "", photo: d?.profile?.photo || "" }); setProfileEditing(false); }).catch(e => setMessage(e.message));
+    }
     else if (page === "settings") {
       settingsHydratedRef.current = false;
+      languageHydratedRef.current = false;
       Promise.all([api("/api/settings"), api("/api/security/status")]).then(([d, sec]) => {
         const incoming = d.settings || {};
-        const safeTheme = incoming.theme === "dark" ? "dark" : "light";
-        const safeLanguage = incoming.language === "Hindi" ? "Hindi" : "English";
+        let storedTheme = null;
+        let storedLanguage = null;
+        try {
+          storedTheme = localStorage.getItem("resumeai_theme");
+          storedLanguage = localStorage.getItem("resumeai_ui_language");
+        } catch {}
+        const safeTheme = storedTheme === "dark" || incoming.theme === "dark" ? "dark" : "light";
+        const safeLanguage = storedLanguage === "Hindi" || incoming.language === "Hindi" ? "Hindi" : "English";
         setSettings(prev => ({...prev, ...incoming, theme: safeTheme, language: safeLanguage}));
         setSecurity(prev => ({...prev, enabled: !!sec?.lock_enabled, configured: !!sec?.lock_configured, mode: null}));
         try { localStorage.setItem("resumeai_ui_language", safeLanguage); } catch {}
+        languageHydratedRef.current = true;
+        window.dispatchEvent(new CustomEvent("resumeai-language-updated", { detail: safeLanguage }));
         window.setTimeout(() => { settingsHydratedRef.current = true; }, 0);
       }).catch(e => setMessage(e.message));
     }
@@ -504,6 +757,7 @@ function WorkspaceModules({ page, currentUser, onNavigate, resumeJobId, onLogout
 
   useEffect(() => {
     const lang = settings.language === "Hindi" ? "Hindi" : "English";
+    if (!languageHydratedRef.current) return;
     try { localStorage.setItem("resumeai_ui_language", lang); } catch {}
     window.dispatchEvent(new CustomEvent("resumeai-language-updated", { detail: lang }));
   }, [settings.language]);
@@ -580,7 +834,7 @@ function WorkspaceModules({ page, currentUser, onNavigate, resumeJobId, onLogout
   }
 
   function previewVoice() {
-    speakAIQuestion(mockLanguage === "Hindi" ? "Namaste! Yeh ResumeAI voice preview hai." : mockLanguage === "Hinglish" ? "Namaste! Yeh ResumeAI ka voice preview hai." : "Hello! This is the ResumeAI voice preview.");
+    speakAIQuestion(mockLanguage === "Hindi" ? "नमस्ते! यह ResumeAI वॉइस प्रीव्यू है।" : "Hello! This is the ResumeAI voice preview.");
   }
 
   useEffect(() => {
@@ -773,13 +1027,13 @@ function WorkspaceModules({ page, currentUser, onNavigate, resumeJobId, onLogout
       {!mockSession && !mockResult?.final && <div className="mock-ai-hero">
         <div className="mock-robot-orb">🤖</div>
         <div className="mock-ai-copy"><span className="eyebrow">RESUMEAI AI INTERVIEWER</span><h2>Practice like it is a real interview.</h2><p>The AI reads your resume when available, asks exactly 10 adaptive questions and evaluates each answer before moving forward.</p></div>
-        <div className="mock-ai-controls"><label>Target role<input value={mockRole} onChange={e => setMockRole(e.target.value)} placeholder="e.g. Software Engineer" /></label><label>Target goal<input value={mockTargetGoal} onChange={e => setMockTargetGoal(e.target.value)} placeholder="e.g. Crack frontend interviews" /></label><label>Interview language<select value={mockLanguage} onChange={e => setMockLanguage(e.target.value)}><option>English</option><option>Hindi</option><option>Hinglish</option></select></label><div className="mock-mode-picker"><span>Interview mode</span><button type="button" className={mockMode === "text" ? "selected" : ""} onClick={() => setMockMode("text")}>💬 AI + Human Text</button><button type="button" className={mockMode === "voice" ? "selected" : ""} onClick={() => setMockMode("voice")}>🎙️ AI Voice + Human Voice</button></div><button className="workspace-primary glow-action" onClick={startMock} disabled={busy}>{busy ? "Preparing AI Interview..." : "Start 10-Question Interview →"}</button></div>
+        <div className="mock-ai-controls"><label>Target role<input value={mockRole} onChange={e => setMockRole(e.target.value)} placeholder="e.g. Software Engineer" /></label><label>Target goal<input value={mockTargetGoal} onChange={e => setMockTargetGoal(e.target.value)} placeholder="e.g. Crack frontend interviews" /></label><label>Interview language<select value={mockLanguage} onChange={e => { const value = e.target.value === "Hindi" ? "Hindi" : "English"; setMockLanguage(value); try { localStorage.setItem("resumeai_mock_language", value); } catch {} }}><option>English</option><option>Hindi</option></select></label><div className="mock-mode-picker"><span>Interview mode</span><button type="button" className={mockMode === "text" ? "selected" : ""} onClick={() => setMockMode("text")}>💬 AI + Human Text</button><button type="button" className={mockMode === "voice" ? "selected" : ""} onClick={() => setMockMode("voice")}>🎙️ AI Voice + Human Voice</button></div><button className="workspace-primary glow-action" onClick={startMock} disabled={busy}>{busy ? "Preparing AI Interview..." : "Start 10-Question Interview →"}</button></div>
       </div>}
       {mockSession && <div className="mock-live-shell">
         <div className="mock-live-top"><div><span className="eyebrow">🤖 LIVE AI INTERVIEW</span><h2>{mockSession.role || mockRole}</h2></div><div className="mock-live-actions"><div className="mock-language-chip">🌐 {mockSession.language || mockLanguage}</div><button type="button" className="mock-exit-btn" onClick={endMock}>✕ End Interview</button></div></div>
         <div className="mock-progress"><span>QUESTION {mockNumber} OF 10</span><div><i style={{ width: `${(mockNumber / 10) * 100}%` }} /></div></div>
         <div className="mock-question-bubble"><div className="mock-speaker-line"><span>🤖 AI Interviewer</span>{mockMode === "voice" && <button type="button" className="voice-play-btn" onClick={() => speakAIQuestion(mockSession.question)}>{aiSpeaking ? "🔊 Speaking..." : "🔊 Hear question"}</button>}</div><h2>{mockSession.question}</h2><small className="mock-conversation-hint">{mockMode === "voice" ? "AI asks by voice. You can answer by voice or type your answer below." : "AI asks in chat. Type your answer below, or switch to Voice AI for spoken practice."}</small></div>
-        <div className="mock-answer-area"><div className="mock-answer-heading"><div><strong>Your answer</strong><small>Speak or type naturally. The AI evaluates what you actually say.</small></div><button type="button" className={`voice-btn ${mockListening ? "listening" : ""}`} onClick={startVoiceInput}>{mockListening ? "🎙️ Listening..." : "🎙️ Speak answer"}</button></div><textarea rows="8" value={mockAnswer} onChange={e => setMockAnswer(e.target.value)} placeholder={mockLanguage === "Hindi" ? "Apna answer yahan likhein..." : mockLanguage === "Hinglish" ? "Apna answer yahan type karein..." : "Write your answer in your own words..."}/><button className="workspace-primary" onClick={submitMock} disabled={busy || !mockAnswer.trim()}>{busy ? "🤖 Evaluating your answer..." : "Send Answer →"}</button></div>
+        <div className="mock-answer-area"><div className="mock-answer-heading"><div><strong>Your answer</strong><small>Speak or type naturally. The AI evaluates what you actually say.</small></div><button type="button" className={`voice-btn ${mockListening ? "listening" : ""}`} onClick={startVoiceInput}>{mockListening ? "🎙️ Listening..." : "🎙️ Speak answer"}</button></div><textarea rows="8" value={mockAnswer} onChange={e => setMockAnswer(e.target.value)} placeholder={mockLanguage === "Hindi" ? "Apna answer yahan likhein..." : "Write your answer in your own words..."}/><button className="workspace-primary" onClick={submitMock} disabled={busy || !mockAnswer.trim()}>{busy ? "🤖 Evaluating your answer..." : "Send Answer →"}</button></div>
         {mockResult && !mockResult.final && <div className="mock-next-ready"><div><span className="eyebrow">ANSWER RECORDED</span><h3>Your answer has been saved for the final interview evaluation.</h3><p>No score is shown yet. ResumeAI will evaluate all answers together after Question 10.</p></div><button className="workspace-primary" onClick={nextMockQuestion}>Next AI Question →</button></div>}
       </div>}
       {mockResult?.final && <div className="mock-final-card mock-final-pro"><div className="mock-robot-orb">🏆</div><span className="eyebrow">10 / 10 COMPLETE</span><h2>Mock interview complete.</h2><div className="final-score">{mockResult.final_score}<small>/100</small></div><p>{mockResult.final_feedback}</p><div className="mock-final-report">{(mockResult.final_report || []).map((item, index) => <article className="mock-report-item" key={item.question_number || index}><div className="mock-report-q"><span>Question {item.question_number}</span><strong>{item.question}</strong></div><div className="mock-report-answer"><b>Your answer</b><p>{item.answer || "No answer recorded."}</p></div><div className="mock-report-evaluation"><span className="mock-report-score">{item.score}/100</span><div><b>What went wrong / evaluation</b><p>{item.feedback}</p>{item.strengths && <p><strong>Strength:</strong> {item.strengths}</p>}{item.improvement && <p><strong>Improve:</strong> {item.improvement}</p>}</div></div></article>)}</div><div className="mock-final-actions"><button className="workspace-primary" onClick={startMock}>Start New Interview →</button><button className="secondary-action" onClick={() => onNavigate("analytics")}>View Career Analytics</button></div></div>}
@@ -889,7 +1143,12 @@ function WorkspaceModules({ page, currentUser, onNavigate, resumeJobId, onLogout
           {settingsTab === "Appearance" && <div className="settings-pane"><div className="settings-pane-head"><span>🎨</span><div><h3>Appearance</h3><p>Choose how ResumeAI looks on your device.</p></div></div><div className="theme-choice-grid">{[['light','☀️','Light','Clean bright workspace'],['dark','🌙','Dark','Low-light focused workspace']].map(([value,icon,title,sub])=><button type="button" key={value} className={`theme-choice ${settings.theme===value?'selected':''}`} onClick={()=>setSettings({...settings,theme:value})}><span>{icon}</span><strong>{title}</strong><small>{sub}</small>{settings.theme===value && <b>✓</b>}</button>)}</div><div className="settings-live-note">✨ Theme changes apply immediately.</div></div>}
           {settingsTab === "Notifications" && <div className="settings-pane"><div className="settings-pane-head"><span>🔔</span><div><h3>Notifications</h3><p>Choose which career updates you want.</p></div></div><div className="settings-toggle-list"><div className="settings-row-pro"><div><h3>Email notifications</h3><p>Important account and feature updates.</p></div><label className="toggle"><input type="checkbox" checked={settings.email_notifications} onChange={e=>setSettings({...settings,email_notifications:e.target.checked})}/><span/></label></div><div className="settings-row-pro"><div><h3>Weekly career summary</h3><p>A compact summary of your ResumeAI activity.</p></div><label className="toggle"><input type="checkbox" checked={settings.weekly_summary} onChange={e=>setSettings({...settings,weekly_summary:e.target.checked})}/><span/></label></div></div></div>}
           {settingsTab === "Resume Preferences" && <div className="settings-pane"><div className="settings-pane-head"><span>📄</span><div><h3>Resume Preferences</h3><p>Controls for your resume workflow.</p></div></div><div className="preference-cards"><div><strong>Supported formats</strong><span>PDF · DOC · DOCX · RTF · ODT · TXT · JPG · JPEG · PNG · WEBP</span></div><div><strong>Analysis style</strong><span>Evidence-based and honest scoring</span></div><div><strong>Enhancement</strong><span>Original photo preserved when available</span></div></div><div className="settings-live-note">💡 ResumeAI will never treat a suggestion as a fact from your resume.</div></div>}
-          {settingsTab === "AI Preferences" && <div className="settings-pane"><div className="settings-pane-head"><span>🤖</span><div><h3>AI Preferences</h3><p>Control how AI Career Chat and AI tools respond.</p></div></div><label className="settings-select-card"><span>Website language</span><small>Change the language of the ResumeAI interface.</small><select value={settings.language} onChange={e=>setSettings({...settings,language:e.target.value})}><option>English</option><option>Hindi</option></select></label><div className="settings-voice-card"><div><span>🎙️</span><div><strong>AI Interview Voice</strong><small>Choose whether the AI interviewer speaks and which voice style it uses.</small></div></div><label className="toggle"><input type="checkbox" checked={settings.voice_enabled} onChange={e=>setSettings({...settings,voice_enabled:e.target.checked})}/><span/></label><select value={settings.voice_gender} onChange={e=>setSettings({...settings,voice_gender:e.target.value})}><option value="female">Female voice</option><option value="male">Male voice</option></select><button type="button" className="voice-preview-setting" onClick={previewVoice}>▶ Test Voice</button></div><div className="ai-capability-grid"><span>🧠 Resume-grounded feedback</span><span>🎤 Adaptive mock interviews</span><span>💬 Multilingual chat</span><span>🔎 Evidence-aware suggestions</span></div></div>}
+          {settingsTab === "AI Preferences" && <div className="settings-pane"><div className="settings-pane-head"><span>🤖</span><div><h3>AI Preferences</h3><p>Control how AI Career Chat and AI tools respond.</p></div></div><label className="settings-select-card"><span>Website language</span><small>Change the language of the ResumeAI interface.</small><select value={settings.language} onChange={e=>{
+  const value = e.target.value === "Hindi" ? "Hindi" : "English";
+  setSettings(prev => ({...prev, language: value}));
+  try { localStorage.setItem("resumeai_ui_language", value); } catch {}
+  window.dispatchEvent(new CustomEvent("resumeai-language-updated", { detail: value }));
+}}><option>English</option><option>Hindi</option></select></label><div className="settings-voice-card"><div><span>🎙️</span><div><strong>AI Interview Voice</strong><small>Choose whether the AI interviewer speaks and which voice style it uses.</small></div></div><label className="toggle"><input type="checkbox" checked={settings.voice_enabled} onChange={e=>setSettings({...settings,voice_enabled:e.target.checked})}/><span/></label><select value={settings.voice_gender} onChange={e=>setSettings({...settings,voice_gender:e.target.value})}><option value="female">Female voice</option><option value="male">Male voice</option></select><button type="button" className="voice-preview-setting" onClick={previewVoice}>▶ Test Voice</button></div><div className="ai-capability-grid"><span>🧠 Resume-grounded feedback</span><span>🎤 Adaptive mock interviews</span><span>💬 Multilingual chat</span><span>🔎 Evidence-aware suggestions</span></div></div>}
           {settingsTab === "Security" && (
             <div className="settings-pane">
               <div className="settings-pane-head">
@@ -1116,6 +1375,10 @@ function App() {
   const [uiTheme, setUiTheme] = useState(() => { try { return localStorage.getItem("resumeai_theme") === "dark" ? "dark" : "light"; } catch { return "light"; } });
 
   useEffect(() => {
+    try { localStorage.removeItem("resumeai_last_analysis"); } catch {}
+  }, []);
+
+  useEffect(() => {
     const syncLanguage = (event) => setUiLanguage(event?.detail === "Hindi" ? "Hindi" : "English");
     const syncTheme = (event) => setUiTheme(event?.detail === "dark" ? "dark" : "light");
     window.addEventListener("resumeai-language-updated", syncLanguage);
@@ -1151,9 +1414,9 @@ function App() {
   const [photoPreview, setPhotoPreview] =
     useState("");
 
-  const [result, setResult] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("resumeai_last_analysis")) || null; } catch { return null; }
-  });
+  // A fresh website visit must start with a clean analyzer. Results are kept
+  // in React state only and are shown only after the user uploads/analyzes a resume.
+  const [result, setResult] = useState(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -1417,7 +1680,7 @@ function App() {
   async function fetchAIAdvice(jobId) {
     setAiStatus("processing");
 
-    for (let i = 0; i < 80; i += 1) {
+    for (let i = 0; i < 40; i += 1) {
       try {
         const response =
           await fetch(
@@ -1456,7 +1719,7 @@ function App() {
         (resolve) =>
           setTimeout(
             resolve,
-            1500
+            750
           )
       );
     }
@@ -1533,8 +1796,6 @@ function App() {
       }
 
       setResult(data);
-      try { localStorage.setItem("resumeai_last_analysis", JSON.stringify(data)); } catch {}
-
       fetch(`${API_URL}/api/dashboard`, {
         headers: apiAuthHeaders(),
       })

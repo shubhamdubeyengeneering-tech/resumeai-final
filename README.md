@@ -1,16 +1,39 @@
-# React + Vite
+# ResumeAI 3.0
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+AI Resume Analyzer + Career Workspace built with React/Vite and FastAPI.
 
-Currently, two official plugins are available:
+## Features
+- Resume-only validation with honest deterministic scoring
+- PDF/DOC/DOCX/RTF/ODT/TXT and common image resume extraction
+- OCR fallback for scanned resumes
+- Grounded Gemini AI feedback
+- Multilingual AI Career Chat and adaptive mock interviews (English/Hindi/Hinglish)
+- Voice input/output with voice preview and device-aware male/female preference fallback
+- Live jobs from multiple providers, resume matching and country/work-mode filters
+- Auto-saving settings + Neon theme
+- Optional Google OAuth, Gmail SMTP notifications and 24-hour digest worker
+- Optional website PIN lock after login
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Backend
+```bash
+cd src/backend
+pip install -r ../../requirements.txt
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
 
-## React Compiler
+## Frontend
+```bash
+npm install
+npm run dev
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Create `.env` from `.env.example` for the backend. Never commit real API keys or passwords.
 
-## Expanding the Oxlint configuration
+### OCR note
+Image/scanned-PDF OCR requires the Tesseract executable to be installed on the machine/container.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+### Google login
+Google OAuth is optional. Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` and `RESUMEAI_FRONTEND_URL` after creating an OAuth Web Application in Google Cloud.
+
+### Job coverage
+Remotive and Arbeitnow are used without an API key. Adzuna can be enabled with `ADZUNA_APP_ID` and `ADZUNA_APP_KEY` for broader country coverage.

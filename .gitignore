@@ -1,10 +1,8 @@
-﻿.venv/
-venv/
-_pycache_/
-*.pyc
-.env
-dist/
 node_modules/
+dist/
 .env
-*.db
+*.pyc
 __pycache__/
+*.db
+*.db-shm
+*.db-wal
