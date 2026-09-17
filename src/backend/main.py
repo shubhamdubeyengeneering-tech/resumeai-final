@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 try:
     from google import genai
     from google.genai import types
+    
 except Exception:
     genai = None
     types = None
@@ -2305,7 +2306,7 @@ The resume below is the source of truth for resume-related facts.
 
 IMPORTANT:
 - Remember and use the previous chat turns below. Answer follow-up questions in context.
-- The user may ask in English, Hindi, or Hinglish. Reply naturally in the same language/style.
+- Detect the language of the CURRENT USER MESSAGE independently. If it is English, reply entirely in professional English. If it is Hindi, reply entirely in natural Hindi (Devanagari). If it is Hinglish, reply in Hinglish. Never let the previous message language override the current message language.
 - Use the resume for facts about the candidate. Never invent skills, projects, employers, education,
   certifications, achievements, numbers, job titles, responsibilities or experience.
 - If the resume does not contain the requested fact, say that it is not present/unclear.

@@ -284,8 +284,8 @@ def security_change_pin(data: PinChange, user=Depends(get_current_user)):
         raise HTTPException(400, 'New PIN must contain 4-12 digits.')
     if new_pin != confirm:
         raise HTTPException(400, 'New PIN and confirmation do not match.')
-    conn = db(); conn.execute('UPDATE settings SET lock_enabled=1,lock_pin_hash=?,updated_at=? WHERE user_id=?', (_hash_lock_pin(new_pin), now(), user['id'])); conn.commit(); conn.close()
-    return {'success': True, 'message': 'PIN changed successfully.', 'lock_enabled': True, 'lock_configured': True}
+    conn = db(); conn.execute('UPDATE settings SET lock_enabled=0,lock_pin_hash=?,updated_at=? WHERE user_id=?', (_hash_lock_pin(new_pin), now(), user['id'])); conn.commit(); conn.close()
+    return {'success': True, 'message': 'PIN changed successfully. Website Lock remains unchanged.', 'lock_enabled': False, 'lock_configured': True}
 
 class PinEnable(BaseModel):
     current_pin: str = Field(min_length=4, max_length=12)

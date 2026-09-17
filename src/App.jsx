@@ -689,7 +689,7 @@ function WorkspaceModules({ page, currentUser, onNavigate, resumeJobId, onLogout
   const [appForm, setAppForm] = useState({ company: "", role: "", location: "", url: "", status: "Applied", notes: "" });
   const [profile, setProfile] = useState({ name: currentUser?.name || "", email: currentUser?.email || "", phone: "", location: "", headline: "", bio: "", skills: "", photo: "" });
   const [profileEditing, setProfileEditing] = useState(false);
-  const [settings, setSettings] = useState(() => ({ email_notifications: true, weekly_summary: true, language: (() => { try { return localStorage.getItem("resumeai_ui_language") === "Hindi" ? "Hindi" : "English"; } catch { return "English"; } })(), theme: (() => { try { const t = localStorage.getItem("resumeai_theme"); return t === "dark" ? "dark" : "light"; } catch { return "light"; } })(), voice_enabled: true, voice_gender: "female", lock_enabled: false, lock_pin: "" }));
+  const [settings, setSettings] = useState(() => ({ email_notifications: true, weekly_summary: true, language: "English", theme: "light", voice_enabled: true, voice_gender: "female", lock_enabled: false, lock_pin: "" }));
   const [analytics, setAnalytics] = useState(null);
   const [premium, setPremium] = useState(null);
   const settingsHydratedRef = useRef(false);
@@ -726,8 +726,8 @@ function WorkspaceModules({ page, currentUser, onNavigate, resumeJobId, onLogout
           storedTheme = localStorage.getItem("resumeai_theme");
           storedLanguage = localStorage.getItem("resumeai_ui_language");
         } catch {}
-        const safeTheme = storedTheme === "dark" || incoming.theme === "dark" ? "dark" : "light";
-        const safeLanguage = storedLanguage === "Hindi" || incoming.language === "Hindi" ? "Hindi" : "English";
+        const safeTheme = "light";
+        const safeLanguage = "English";
         setSettings(prev => ({...prev, ...incoming, theme: safeTheme, language: safeLanguage}));
         setSecurity(prev => ({...prev, enabled: !!sec?.lock_enabled, configured: !!sec?.lock_configured, mode: null}));
         try { localStorage.setItem("resumeai_ui_language", safeLanguage); } catch {}
@@ -756,10 +756,15 @@ function WorkspaceModules({ page, currentUser, onNavigate, resumeJobId, onLogout
   }, [settings.theme]);
 
   useEffect(() => {
-    const lang = settings.language === "Hindi" ? "Hindi" : "English";
+    const lang = "English";
     if (!languageHydratedRef.current) return;
     try { localStorage.setItem("resumeai_ui_language", lang); } catch {}
     window.dispatchEvent(new CustomEvent("resumeai-language-updated", { detail: lang }));
+  }, [settings.language]);
+
+  useEffect(() => {
+    // Website language is English-only; Mock language remains independently selectable.
+    if (settings.language !== "English") setSettings(prev => ({ ...prev, language: "English" }));
   }, [settings.language]);
 
   // Settings are saved automatically after a short debounce. There is no manual save button.
@@ -941,7 +946,7 @@ function WorkspaceModules({ page, currentUser, onNavigate, resumeJobId, onLogout
     setBusy(true);
     try {
       const d = await api("/api/security/set-pin", { method: "POST", body: JSON.stringify({ pin: security.pin, confirm_pin: security.confirmPin }) });
-      setSecurity(prev => ({...prev, enabled: true, configured: true, mode: null, pin: "", confirmPin: ""}));
+      setSecurity(prev => ({...prev, enabled: !!d.lock_enabled, configured: !!d.lock_configured, mode: null, pin: "", confirmPin: ""}));
       setMessage(d.message || "PIN created successfully.");
     } catch (e) { setMessage(e.message); } finally { setBusy(false); }
   }
@@ -1140,7 +1145,7 @@ function WorkspaceModules({ page, currentUser, onNavigate, resumeJobId, onLogout
         <aside className="settings-nav-card settings-nav-interactive">{[['👤','Account','Personal details and account information'],['🎨','Appearance','Theme and display preferences'],['🔔','Notifications','Email and weekly updates'],['📄','Resume Preferences','Resume upload and analysis'],['🤖','AI Preferences','AI assistant and suggestions'],['🔐','Security','Password and session management']].map(([icon,title,sub])=><button type="button" className={`settings-nav-item ${settingsTab===title?'active':''}`} key={title} onClick={()=>setSettingsTab(title)}><span>{icon}</span><div><strong>{title}</strong><small>{sub}</small></div><b>›</b></button>)}</aside>
         <section className="settings-content-card settings-content-pro">
           {settingsTab === "Account" && <div className="settings-pane"><div className="settings-pane-head"><span>👤</span><div><h3>Account</h3><p>Your identity and account information.</p></div></div><div className="settings-account-preview"><div className="settings-avatar">{(currentUser?.name || profile.name || "U").slice(0,1).toUpperCase()}</div><div><strong>{currentUser?.name || profile.name || "ResumeAI User"}</strong><small>{profile.email || currentUser?.email || "Guest workspace"}</small>{currentUser?.email && <small>Signed in with: {currentUser.email}</small>}</div><span>✓ Workspace active</span></div><div className="settings-account-premium"><div><span>👑</span><div><strong>ResumeAI Premium</strong><small>Advanced career tools and future premium features.</small></div></div><b>🚀 Coming Soon</b></div><button className="secondary-action" type="button" onClick={()=>onNavigate("profile")}>Open Full Profile →</button></div>}
-          {settingsTab === "Appearance" && <div className="settings-pane"><div className="settings-pane-head"><span>🎨</span><div><h3>Appearance</h3><p>Choose how ResumeAI looks on your device.</p></div></div><div className="theme-choice-grid">{[['light','☀️','Light','Clean bright workspace'],['dark','🌙','Dark','Low-light focused workspace']].map(([value,icon,title,sub])=><button type="button" key={value} className={`theme-choice ${settings.theme===value?'selected':''}`} onClick={()=>setSettings({...settings,theme:value})}><span>{icon}</span><strong>{title}</strong><small>{sub}</small>{settings.theme===value && <b>✓</b>}</button>)}</div><div className="settings-live-note">✨ Theme changes apply immediately.</div></div>}
+          {settingsTab === "Appearance" && <div className="settings-pane"><div className="settings-pane-head"><span>🎨</span><div><h3>Appearance</h3><p>ResumeAI uses the light theme for a consistent interface.</p></div></div></div>}
           {settingsTab === "Notifications" && <div className="settings-pane"><div className="settings-pane-head"><span>🔔</span><div><h3>Notifications</h3><p>Choose which career updates you want.</p></div></div><div className="settings-toggle-list"><div className="settings-row-pro"><div><h3>Email notifications</h3><p>Important account and feature updates.</p></div><label className="toggle"><input type="checkbox" checked={settings.email_notifications} onChange={e=>setSettings({...settings,email_notifications:e.target.checked})}/><span/></label></div><div className="settings-row-pro"><div><h3>Weekly career summary</h3><p>A compact summary of your ResumeAI activity.</p></div><label className="toggle"><input type="checkbox" checked={settings.weekly_summary} onChange={e=>setSettings({...settings,weekly_summary:e.target.checked})}/><span/></label></div></div></div>}
           {settingsTab === "Resume Preferences" && <div className="settings-pane"><div className="settings-pane-head"><span>📄</span><div><h3>Resume Preferences</h3><p>Controls for your resume workflow.</p></div></div><div className="preference-cards"><div><strong>Supported formats</strong><span>PDF · DOC · DOCX · RTF · ODT · TXT · JPG · JPEG · PNG · WEBP</span></div><div><strong>Analysis style</strong><span>Evidence-based and honest scoring</span></div><div><strong>Enhancement</strong><span>Original photo preserved when available</span></div></div><div className="settings-live-note">💡 ResumeAI will never treat a suggestion as a fact from your resume.</div></div>}
           {settingsTab === "AI Preferences" && <div className="settings-pane"><div className="settings-pane-head"><span>🤖</span><div><h3>AI Preferences</h3><p>Control how AI Career Chat and AI tools respond.</p></div></div><label className="settings-select-card"><span>Website language</span><small>Change the language of the ResumeAI interface.</small><select value={settings.language} onChange={e=>{
@@ -1148,7 +1153,7 @@ function WorkspaceModules({ page, currentUser, onNavigate, resumeJobId, onLogout
   setSettings(prev => ({...prev, language: value}));
   try { localStorage.setItem("resumeai_ui_language", value); } catch {}
   window.dispatchEvent(new CustomEvent("resumeai-language-updated", { detail: value }));
-}}><option>English</option><option>Hindi</option></select></label><div className="settings-voice-card"><div><span>🎙️</span><div><strong>AI Interview Voice</strong><small>Choose whether the AI interviewer speaks and which voice style it uses.</small></div></div><label className="toggle"><input type="checkbox" checked={settings.voice_enabled} onChange={e=>setSettings({...settings,voice_enabled:e.target.checked})}/><span/></label><select value={settings.voice_gender} onChange={e=>setSettings({...settings,voice_gender:e.target.value})}><option value="female">Female voice</option><option value="male">Male voice</option></select><button type="button" className="voice-preview-setting" onClick={previewVoice}>▶ Test Voice</button></div><div className="ai-capability-grid"><span>🧠 Resume-grounded feedback</span><span>🎤 Adaptive mock interviews</span><span>💬 Multilingual chat</span><span>🔎 Evidence-aware suggestions</span></div></div>}
+}}><option>English</option></select></label><div className="settings-voice-card"><div><span>🎙️</span><div><strong>AI Interview Voice</strong><small>Choose whether the AI interviewer speaks and which voice style it uses.</small></div></div><label className="toggle"><input type="checkbox" checked={settings.voice_enabled} onChange={e=>setSettings({...settings,voice_enabled:e.target.checked})}/><span/></label><select value={settings.voice_gender} onChange={e=>setSettings({...settings,voice_gender:e.target.value})}><option value="female">Female voice</option><option value="male">Male voice</option></select><button type="button" className="voice-preview-setting" onClick={previewVoice}>▶ Test Voice</button></div><div className="ai-capability-grid"><span>🧠 Resume-grounded feedback</span><span>🎤 Adaptive mock interviews</span><span>💬 Multilingual chat</span><span>🔎 Evidence-aware suggestions</span></div></div>}
           {settingsTab === "Security" && (
             <div className="settings-pane">
               <div className="settings-pane-head">
@@ -2164,6 +2169,7 @@ function App() {
             headers: {
               "Content-Type":
                 "application/json",
+              ...apiAuthHeaders(),
             },
             body: JSON.stringify({
               job_id: resumeJobId,
@@ -2200,7 +2206,8 @@ function App() {
       ) {
         const pollResponse =
           await fetch(
-            `${API_URL}/chat/${chatJobId}`
+            `${API_URL}/chat/${chatJobId}`,
+            { headers: apiAuthHeaders() }
           );
 
         const pollData =
