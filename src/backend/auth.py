@@ -3,7 +3,7 @@ from email.message import EmailMessage
 from datetime import datetime, timedelta, timezone
 import jwt
 from pwdlib import PasswordHash
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Header, Request
 from pydantic import BaseModel, Field
 
 try:
@@ -196,7 +196,7 @@ def login(data: LoginRequest):
             'user': {'id': user['id'], 'name': user['name'], 'email': user['email']}}
 
 @auth_router.get('/google/start')
-async def google_start(request: __import__('fastapi').Request):
+async def google_start(request: Request):
     if not oauth or not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
         raise HTTPException(503, 'Google login is not configured yet. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to the backend environment.')
     redirect_uri = GOOGLE_REDIRECT_URI
@@ -204,7 +204,7 @@ async def google_start(request: __import__('fastapi').Request):
 
 
 @auth_router.get('/google/callback')
-async def google_callback(request: __import__('fastapi').Request):
+async def google_callback(request: Request):
     if not oauth:
         raise HTTPException(503, 'Google login is not configured.')
     try:

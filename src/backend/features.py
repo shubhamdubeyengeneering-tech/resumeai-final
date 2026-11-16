@@ -56,7 +56,7 @@ def _notify_user(user_id: int, subject: str, body: str):
 def init_feature_db():
     conn = get_db()
     conn.execute('''CREATE TABLE IF NOT EXISTS profiles (user_id INTEGER PRIMARY KEY, phone TEXT DEFAULT '', location TEXT DEFAULT '', headline TEXT DEFAULT '', bio TEXT DEFAULT '', skills TEXT DEFAULT '', photo TEXT DEFAULT '', updated_at TEXT NOT NULL)''')
-    conn.execute('''CREATE TABLE IF NOT EXISTS settings (user_id INTEGER PRIMARY KEY, email_notifications INTEGER DEFAULT 1, weekly_summary INTEGER DEFAULT 1, language TEXT DEFAULT 'English', theme TEXT DEFAULT 'system', voice_enabled INTEGER DEFAULT 1, voice_gender TEXT DEFAULT 'female', updated_at TEXT NOT NULL, lock_enabled INTEGER DEFAULT 0, lock_pin_hash TEXT DEFAULT '')''')
+    conn.execute('''CREATE TABLE IF NOT EXISTS settings (user_id INTEGER PRIMARY KEY, email_notifications INTEGER DEFAULT 1, weekly_summary INTEGER DEFAULT 1, language TEXT DEFAULT 'English', theme TEXT DEFAULT 'system', voice_enabled INTEGER DEFAULT 1, voice_gender TEXT DEFAULT 'female', voice_language TEXT DEFAULT 'English', updated_at TEXT NOT NULL, lock_enabled INTEGER DEFAULT 0, lock_pin_hash TEXT DEFAULT '')''')
     conn.execute('''CREATE TABLE IF NOT EXISTS notification_events (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL, kind TEXT DEFAULT 'career', read INTEGER DEFAULT 0, created_at TEXT NOT NULL)''')
     conn.execute('''CREATE TABLE IF NOT EXISTS notification_digest_log (user_id INTEGER PRIMARY KEY, last_sent_at TEXT DEFAULT '')''')
     conn.execute('''CREATE TABLE IF NOT EXISTS applications (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, company TEXT NOT NULL, role TEXT NOT NULL, location TEXT DEFAULT '', url TEXT DEFAULT '', status TEXT DEFAULT 'Applied', notes TEXT DEFAULT '', applied_at TEXT NOT NULL)''')
@@ -71,6 +71,8 @@ def init_feature_db():
         conn.execute("ALTER TABLE settings ADD COLUMN voice_enabled INTEGER DEFAULT 1")
     if 'voice_gender' not in cols:
         conn.execute("ALTER TABLE settings ADD COLUMN voice_gender TEXT DEFAULT 'female'")
+    if 'voice_language' not in cols:
+        conn.execute("ALTER TABLE settings ADD COLUMN voice_language TEXT DEFAULT 'English'")
     profile_cols = {r[1] for r in conn.execute('PRAGMA table_info(profiles)').fetchall()}
     if 'photo' not in profile_cols:
         conn.execute("ALTER TABLE profiles ADD COLUMN photo TEXT DEFAULT ''")
@@ -134,9 +136,10 @@ class SettingsUpdate(BaseModel):
     email_notifications: bool = True
     weekly_summary: bool = True
     language: str = 'English'
-    theme: str = 'system'
+    theme: str = 'light'
     voice_enabled: bool = True
     voice_gender: str = 'female'
+    voice_language: str = 'English'
     lock_enabled: bool | None = None
     lock_pin: str | None = Field(default=None, max_length=12)
 
@@ -205,16 +208,17 @@ def update_profile(data: ProfileUpdate, user=Depends(get_current_user)):
 def get_settings(user=Depends(get_current_user)):
     conn = db(); row = conn.execute('SELECT * FROM settings WHERE user_id=?', (user['id'],)).fetchone(); conn.close()
     if not row:
-        return {'success': True, 'settings': {'email_notifications': True, 'weekly_summary': True, 'language': 'English', 'theme': 'light', 'voice_enabled': True, 'voice_gender': 'female', 'lock_enabled': False, 'lock_configured': False}}
+        return {'success': True, 'settings': {'email_notifications': True, 'weekly_summary': True, 'language': 'English', 'theme': 'light', 'voice_enabled': True, 'voice_gender': 'female', 'voice_language': 'English', 'lock_enabled': False, 'lock_configured': False}}
     d = dict(row)
-    return {'success': True, 'settings': {'email_notifications': bool(d['email_notifications']), 'weekly_summary': bool(d['weekly_summary']), 'language': d['language'], 'theme': 'dark' if d.get('theme') == 'dark' else 'light', 'voice_enabled': bool(d.get('voice_enabled', 1)), 'voice_gender': d.get('voice_gender') or 'female', 'lock_enabled': bool(d.get('lock_enabled', 0)), 'lock_configured': bool(d.get('lock_pin_hash'))}}
+    return {'success': True, 'settings': {'email_notifications': bool(d['email_notifications']), 'weekly_summary': bool(d['weekly_summary']), 'language': d['language'], 'theme': 'dark' if d.get('theme') == 'dark' else 'light', 'voice_enabled': bool(d.get('voice_enabled', 1)), 'voice_gender': d.get('voice_gender') or 'female', 'voice_language': d.get('voice_language') or 'English', 'lock_enabled': bool(d.get('lock_enabled', 0)), 'lock_configured': bool(d.get('lock_pin_hash'))}}
 
 
 @features_router.put('/settings')
 def update_settings(data: SettingsUpdate, user=Depends(get_current_user)):
     language = data.language if data.language in {'English', 'Hindi'} else 'English'
-    theme = 'dark' if data.theme == 'dark' else 'light'
+    theme = data.theme if data.theme in {'light', 'dark'} else 'light'
     voice_gender = data.voice_gender if data.voice_gender in {'female', 'male'} else 'female'
+    voice_language = data.voice_language if data.voice_language in {'English', 'Hindi'} else 'English'
     conn = db()
     existing = conn.execute('SELECT * FROM settings WHERE user_id=?', (user['id'],)).fetchone()
     ts = now()
@@ -227,16 +231,16 @@ def update_settings(data: SettingsUpdate, user=Depends(get_current_user)):
         if lock_enabled and not lock_hash:
             conn.close()
             raise HTTPException(400, 'Set a PIN in Security before enabling website lock.')
-        conn.execute("UPDATE settings SET email_notifications=?,weekly_summary=?,language=?,theme=?,voice_enabled=?,voice_gender=?,updated_at=?,lock_enabled=?,lock_pin_hash=? WHERE user_id=?",
-                     (int(data.email_notifications), int(data.weekly_summary), language, theme, int(data.voice_enabled), voice_gender, ts, lock_enabled, lock_hash, user['id']))
+        conn.execute("UPDATE settings SET email_notifications=?,weekly_summary=?,language=?,theme=?,voice_enabled=?,voice_gender=?,voice_language=?,updated_at=?,lock_enabled=?,lock_pin_hash=? WHERE user_id=?",
+                     (int(data.email_notifications), int(data.weekly_summary), language, theme, int(data.voice_enabled), voice_gender, voice_language, ts, lock_enabled, lock_hash, user['id']))
     else:
         lock_enabled = int(data.lock_enabled) if data.lock_enabled is not None else 0
         pin = (data.lock_pin or '').strip()
         if lock_enabled and (len(pin) < 4 or not pin.isdigit()):
             conn.close(); raise HTTPException(400, 'Set a PIN in Security before enabling website lock.')
         lock_hash = _hash_lock_pin(pin) if lock_enabled else ''
-        conn.execute("INSERT INTO settings(user_id,email_notifications,weekly_summary,language,theme,voice_enabled,voice_gender,updated_at,lock_enabled,lock_pin_hash) VALUES(?,?,?,?,?,?,?,?,?,?)",
-                     (user['id'], int(data.email_notifications), int(data.weekly_summary), language, theme, int(data.voice_enabled), voice_gender, ts, lock_enabled, lock_hash))
+        conn.execute("INSERT INTO settings(user_id,email_notifications,weekly_summary,language,theme,voice_enabled,voice_gender,voice_language,updated_at,lock_enabled,lock_pin_hash) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                     (user['id'], int(data.email_notifications), int(data.weekly_summary), language, theme, int(data.voice_enabled), voice_gender, voice_language, ts, lock_enabled, lock_hash))
     conn.commit(); conn.close()
     return {'success': True, 'message': 'Settings saved.'}
 
@@ -268,11 +272,11 @@ def security_set_pin(data: PinSetup, user=Depends(get_current_user)):
     conn = db(); ts = now(); hashed = _hash_lock_pin(pin)
     existing = conn.execute('SELECT user_id FROM settings WHERE user_id=?', (user['id'],)).fetchone()
     if existing:
-        conn.execute('UPDATE settings SET lock_enabled=0,lock_pin_hash=?,updated_at=? WHERE user_id=?', (hashed, ts, user['id']))
+        conn.execute('UPDATE settings SET lock_enabled=1,lock_pin_hash=?,updated_at=? WHERE user_id=?', (hashed, ts, user['id']))
     else:
         conn.execute("INSERT INTO settings(user_id,updated_at,lock_enabled,lock_pin_hash) VALUES(?,?,0,?)", (user['id'], ts, hashed))
     conn.commit(); conn.close()
-    return {'success': True, 'message': 'PIN created successfully. Website Lock is currently off.', 'lock_enabled': False, 'lock_configured': True}
+    return {'success': True, 'message': 'PIN created successfully. Website Lock is now enabled.', 'lock_enabled': True, 'lock_configured': True}
 
 @features_router.post('/security/change-pin')
 def security_change_pin(data: PinChange, user=Depends(get_current_user)):
@@ -426,40 +430,40 @@ QUESTION_BANK_LOCALIZED = {
     'English': QUESTION_BANK,
     'Hindi': {
         'software': [
-            'Apne resume ke kisi ek project ko detail mein samjhaiye. Aapne kaunsi problem solve ki aur khud kya banaya?',
-            'Agar koi feature local system par chale lekin production mein fail ho, to aap problem kaise investigate karenge?',
-            'Kisi technical decision ke baare mein batayiye jo aapne liya aur usmein kaun-sa trade-off socha?',
-            'Release se pehle aap kisi feature ko kaise test karenge?',
-            'Aisa samay batayiye jab aapne performance, reliability ya user experience improve kiya ho.',
-            'Kisi non-technical teammate ko technical concept kaise samjhayenge?',
-            'Kisi bug ya galti ke baare mein batayiye aur usse aapne kya seekha.',
-            'Jab kai tasks urgent hon, to aap pehle kaunsa task karenge aur kyun?',
-            'Is role ke liye aap apni kaunsi skill ko sabse zyada improve karna chahenge?',
-            'Aapke genuine experience ke basis par team ko aapko kyun choose karna chahiye?'
+            'अपने रिज्यूमे के किसी एक प्रोजेक्ट को विस्तार से समझाइए। आपने कौन-सी समस्या हल की और स्वयं क्या बनाया?',
+            'यदि कोई सुविधा आपके कंप्यूटर पर चले लेकिन वास्तविक उपयोग में विफल हो जाए, तो आप समस्या की जाँच कैसे करेंगे?',
+            'किसी तकनीकी निर्णय का उदाहरण दीजिए। आपने कौन-कौन से विकल्प और उनके प्रभाव सोचे थे?',
+            'किसी सुविधा को जारी करने से पहले आप उसका परीक्षण कैसे करेंगे?',
+            'ऐसा उदाहरण बताइए जब आपने प्रदर्शन, विश्वसनीयता या उपयोगकर्ता अनुभव बेहतर किया हो।',
+            'आप किसी तकनीकी विषय को ऐसे व्यक्ति को कैसे समझाएँगे जिसे तकनीकी जानकारी नहीं है?',
+            'किसी गलती या तकनीकी समस्या का उदाहरण दीजिए और बताइए कि आपने उससे क्या सीखा।',
+            'जब कई काम एक साथ जरूरी हों, तो आप उनकी प्राथमिकता कैसे तय करेंगे?',
+            'इस भूमिका के लिए आप अपनी किस तकनीकी क्षमता को और बेहतर करना चाहेंगे?',
+            'अपने वास्तविक अनुभव के आधार पर बताइए कि टीम को आपका चयन क्यों करना चाहिए।'
         ],
         'data': [
-            'Apne resume ke kisi analysis ya data project ko samjhaiye. Aap kis sawal ka jawab dhoondh rahe the?',
-            'Missing, inconsistent ya duplicate data ko aap kaise handle karenge?',
-            'Kisi feature ki success measure karne ke liye aap kaunsa metric choose karenge aur kyun?',
-            'Unexpected result ko stakeholder ko aap kaise samjhayenge?',
-            'Aisa samay batayiye jab aapke analysis ne kisi decision ya recommendation ko badla ho.',
-            'Aap kaise validate karenge ki aapka analysis misleading nahi hai?',
-            'Agar do data sources alag results dein to aap kya karenge?',
-            'Apne findings mein uncertainty ko aap kaise communicate karenge?',
-            'Is role ke liye aap kaunsi analytical skill sabse zyada strengthen karna chahenge?',
-            'Sirf apne demonstrated experience ke basis par aap is role ke liye achhe fit kyun hain?'
+            'अपने रिज्यूमे में दिए गए किसी डेटा विश्लेषण प्रोजेक्ट को समझाइए। आप किस सवाल का जवाब ढूँढ रहे थे?',
+            'अधूरे, असंगत या दोहराए गए डेटा को आप कैसे सँभालेंगे?',
+            'किसी सुविधा की सफलता मापने के लिए आप कौन-सा मापदंड चुनेंगे और क्यों?',
+            'किसी अप्रत्याशित नतीजे को आप संबंधित लोगों को कैसे समझाएँगे?',
+            'ऐसा उदाहरण दीजिए जब आपके विश्लेषण से कोई निर्णय या सुझाव बदला हो।',
+            'आप कैसे जाँचेंगे कि आपका विश्लेषण भ्रामक नहीं है?',
+            'यदि दो डेटा स्रोतों से अलग-अलग नतीजे मिलें, तो आप क्या करेंगे?',
+            'अपने निष्कर्षों में अनिश्चितता को आप कैसे स्पष्ट करेंगे?',
+            'इस भूमिका के लिए आप अपनी किस विश्लेषण क्षमता को मजबूत करना चाहेंगे?',
+            'अपने सिद्ध अनुभव के आधार पर बताइए कि आप इस भूमिका के लिए उपयुक्त क्यों हैं।'
         ],
         'default': [
-            'Apne baare mein batayiye aur aap kis career direction mein jana chahte hain?',
-            'Apne resume ke kisi project ya experience ko choose karke apna contribution samjhaiye.',
-            'Kisi challenging problem ke baare mein batayiye aur aapne use kaise solve kiya.',
-            'Aap koi nayi skill kaise seekhte hain?',
-            'Team ya kisi doosre person ke saath kaam karne ka koi important example batayiye.',
-            'Kis achievement par aapko sabse zyada garv hai aur kyun?',
-            'Kisi mistake ya setback ke baare mein batayiye aur aapne kya seekha.',
-            'Multiple deadlines hone par aap priorities kaise decide karte hain?',
-            'Kaunsi skill improve karne se aapke career par sabse bada positive impact padega?',
-            'Apne real experience ke evidence ke basis par aap strong candidate kyun hain?'
+            'अपना परिचय दीजिए और बताइए कि आप किस करियर दिशा में आगे बढ़ना चाहते हैं।',
+            'अपने रिज्यूमे के किसी प्रोजेक्ट या अनुभव को चुनकर उसमें अपना योगदान समझाइए।',
+            'किसी कठिन समस्या का उदाहरण दीजिए और बताइए कि आपने उसे कैसे हल किया।',
+            'आप कोई नया कौशल सीखने की योजना कैसे बनाते हैं?',
+            'टीम के साथ काम करने का कोई महत्वपूर्ण उदाहरण बताइए।',
+            'आपको अपनी किस उपलब्धि पर सबसे अधिक गर्व है और क्यों?',
+            'किसी गलती या असफलता का उदाहरण दीजिए और बताइए कि आपने उससे क्या सीखा।',
+            'जब कई कामों की समय-सीमा एक साथ हो, तो आप प्राथमिकता कैसे तय करेंगे?',
+            'कौन-सा कौशल बेहतर करने से आपके करियर को सबसे अधिक लाभ होगा?',
+            'अपने वास्तविक अनुभव के आधार पर बताइए कि आप इस भूमिका के लिए अच्छे उम्मीदवार क्यों हैं।'
         ]
     }
 }
@@ -705,6 +709,23 @@ def _goal_specific_fallback(role: str, goal: str, language: str, resume_text: st
     resume_q = _resume_topic_question(role, goal, language, resume_text, used)
     if resume_q:
         return resume_q
+    if language == 'Hindi':
+        if any(x in r for x in ['developer','engineer','software','frontend','backend','full stack','web']):
+            candidates = [
+                f'आपके लक्ष्य “{goal_text}” को देखते हुए, अपने रिज्यूमे के किस कौशल का सबसे पहले परीक्षण करना उचित होगा और आपने उसका उपयोग कहाँ किया है?',
+                'अपने किसी वास्तविक तकनीकी काम का उदाहरण दीजिए जिसमें आपको कठिन निर्णय लेना पड़ा हो।'
+            ]
+        elif any(x in r for x in ['data','analyst','scientist','analytics']):
+            candidates = [
+                f'आपके लक्ष्य “{goal_text}” के लिए आपके रिज्यूमे का कौन-सा डेटा कौशल सबसे उपयोगी है और आपने उसे कैसे साबित किया है?',
+                'अपने किसी डेटा प्रोजेक्ट का उदाहरण देकर उसका सबसे महत्वपूर्ण निष्कर्ष समझाइए।'
+            ]
+        else:
+            candidates = [
+                f'आपके लक्ष्य “{goal_text}” के लिए आपका कौन-सा अनुभव सबसे अधिक उपयोगी है और उसमें आपका व्यक्तिगत योगदान क्या था?',
+                'आपके रिज्यूमे का कौन-सा हिस्सा इस भूमिका के लिए आपकी तैयारी का सबसे अच्छा प्रमाण देता है?'
+            ]
+        return next((q for q in candidates if q.lower() not in used), candidates[0])
     if any(x in r for x in ['developer','engineer','software','frontend','backend','full stack','web']):
         if any(x in g for x in ['project','portfolio','build']):
             candidates = [
@@ -777,8 +798,10 @@ def start_mock(data: MockStart, user=Depends(get_current_user)):
     if not question:
         question = _goal_specific_fallback(data.role, data.target_goal, language, resume_text, prior_questions)
     if not question or not _mock_language_ok(question, language):
-        unused = questions
-        question = unused[int(time.time()) % len(unused)]
+        valid_questions = [q for q in questions if _mock_language_ok(q, language)]
+        if not valid_questions:
+            raise HTTPException(500, 'Hindi interview questions are not configured correctly.')
+        question = valid_questions[int(time.time()) % len(valid_questions)]
     conn = db()
     prior = conn.execute('SELECT question FROM mock_interview_turns t JOIN mock_interview_sessions s ON s.id=t.session_id WHERE s.user_id=? AND s.role=? AND s.language=? AND t.question_number=1 ORDER BY t.id DESC LIMIT 20', (user['id'], data.role.strip(), language)).fetchall()
     prior_questions = {str(r['question']).strip().lower() for r in prior}
@@ -915,7 +938,13 @@ RESUME:\n{resume_text}\n\nPREVIOUS QUESTIONS:\n{previous_questions}\n\nPREVIOUS 
     used = {str(r['question']).strip().lower() for r in conn.execute('SELECT question FROM mock_interview_turns WHERE session_id=?', (session_id,)).fetchall()}
     if not next_question or next_question.lower() in used or not _mock_language_ok(next_question, session['language']):
         bank = question_bank_for(session['role'], session['language'])
-        next_question = next((q for q in bank if q.strip().lower() not in used), _goal_specific_fallback(session['role'], session['target_goal'], session['language'], resume_text, used))
+        valid_bank = [q for q in bank if _mock_language_ok(q, session['language'])]
+        next_question = next((q for q in valid_bank if q.strip().lower() not in used), _goal_specific_fallback(session['role'], session['target_goal'], session['language'], resume_text, used))
+    if not _mock_language_ok(next_question, session['language']):
+        next_question = _goal_specific_fallback(session['role'], session['target_goal'], session['language'], resume_text, used)
+    if not _mock_language_ok(next_question, session['language']):
+        conn.close()
+        raise HTTPException(500, 'Next interview question did not match the selected language.')
     next_num = qnum + 1
     conn.execute('UPDATE mock_interview_sessions SET current_question=? WHERE id=?', (next_num, session_id))
     conn.execute('INSERT INTO mock_interview_turns(session_id,question_number,question,created_at) VALUES(?,?,?,?)', (session_id, next_num, next_question, now()))

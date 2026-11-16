@@ -18,7 +18,6 @@ from pydantic import BaseModel, Field
 try:
     from google import genai
     from google.genai import types
-    
 except Exception:
     genai = None
     types = None
@@ -1749,6 +1748,18 @@ def analyze_resume_text(
 
     elif word_count < 220:
         score = min(score, 54)
+
+    # Quality gates: a resume should not receive a high score only because it
+    # contains headings. Missing evidence and shallow content must reduce the
+    # ceiling, while a photo is never required for scoring.
+    if not metrics:
+        score = min(score, 70)
+    if len(action_verbs) < 3:
+        score = min(score, 64)
+    if word_count < 300:
+        score = min(score, 72)
+    if len(skills) < 4:
+        score = min(score, 68)
 
     bullets = extract_bullets(text)
 

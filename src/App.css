@@ -1424,12 +1424,9 @@ html.resumeai-neon .settings-pane-head h3,html.resumeai-neon .settings-row-pro h
 html.resumeai-neon .settings-pane-head p,html.resumeai-neon .settings-row-pro p,html.resumeai-neon .settings-select-card small,html.resumeai-neon .settings-voice-card small{color:#91a8c8}
 html.resumeai-neon .settings-select-card select,html.resumeai-neon .settings-voice-card select,html.resumeai-neon .security-pin-input{background:#071126;color:#eef7ff;border-color:#2d4a77}
 html.resumeai-neon .settings-nav-item strong{color:#e8f2ff}html.resumeai-neon .settings-nav-item small{color:#91a8c8}
-
-.google-login-btn{width:100%;border:1px solid #d9dee8;background:#fff;color:#24344d;border-radius:10px;padding:11px 14px;font-size:11px;font-weight:800;cursor:pointer}.google-login-btn:hover{background:#f7f9fc;border-color:#b9c2d2}
 .voice-preview-setting{border:1px solid #cfe0ee;background:#fff;color:#2f6f9f;border-radius:9px;padding:9px 11px;font-size:9px;font-weight:850;cursor:pointer}.voice-preview-setting:hover{transform:translateY(-1px)}
 .security-lock-card{margin-top:14px;padding:16px;border:1px solid #dce7f0;border-radius:14px;background:#f9fbfd}.security-pin-input{margin-top:12px;width:100%;box-sizing:border-box;border:1px solid #d8e3ed;border-radius:9px;padding:11px;background:#fff;color:#24344d;outline:none}.security-pin-input:focus{border-color:#6337e9;box-shadow:0 0 0 3px rgba(99,55,233,.08)}.auto-save-live{padding:4px 8px;border-radius:999px;background:#e9f8ef;color:#16824b;font-size:8px;font-weight:900;letter-spacing:.08em}
-.site-lock-screen{min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at 50% 20%,#eef4ff,#f7f8fb 50%,#eef0f6);padding:24px;box-sizing:border-box}.site-lock-card{width:min(420px,92vw);background:#fff;border:1px solid #e2e7ef;border-radius:22px;padding:34px;box-shadow:0 25px 70px rgba(25,35,65,.16);text-align:center}.site-lock-icon{font-size:42px;margin-bottom:10px}.site-lock-card h1{margin:7px 0;color:#182038}.site-lock-card p{color:#727c90;font-size:12px;line-height:1.6}.site-lock-card input{width:100%;box-sizing:border-box;border:1px solid #dce2eb;border-radius:10px;padding:13px;text-align:center;letter-spacing:.35em;margin:12px 0;font-size:18px;outline:none}.site-lock-card button{width:100%}.lock-error{color:#c53f4a!important;font-weight:700}
-html.resumeai-dark .google-login-btn,html.resumeai-neon .google-login-btn{background:#0d192a;color:#e7f0fa;border-color:#2a425e}html.resumeai-dark .voice-preview-setting,html.resumeai-neon .voice-preview-setting{background:#122036;color:#c9e0f7;border-color:#2b4663}
+.site-lock-screen{min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at 50% 20%,#eef4ff,#f7f8fb 50%,#eef0f6);padding:24px;box-sizing:border-box}.site-lock-card{width:min(420px,92vw);background:#fff;border:1px solid #e2e7ef;border-radius:22px;padding:34px;box-shadow:0 25px 70px rgba(25,35,65,.16);text-align:center}.site-lock-icon{font-size:42px;margin-bottom:10px}.site-lock-card h1{margin:7px 0;color:#182038}.site-lock-card p{color:#727c90;font-size:12px;line-height:1.6}.site-lock-card input{width:100%;box-sizing:border-box;border:1px solid #dce2eb;border-radius:10px;padding:13px;text-align:center;letter-spacing:.35em;margin:12px 0;font-size:18px;outline:none}.site-lock-card button{width:100%}.lock-error{color:#c53f4a!important;font-weight:700}html.resumeai-dark .voice-preview-setting,html.resumeai-neon .voice-preview-setting{background:#122036;color:#c9e0f7;border-color:#2b4663}
 html.resumeai-dark .security-lock-card,html.resumeai-neon .security-lock-card{background:#0d192a;border-color:#2a425e}html.resumeai-dark .security-pin-input,html.resumeai-neon .security-pin-input{background:#071126;color:#e7f0fa;border-color:#2a425e}
 html.resumeai-dark .site-lock-screen,html.resumeai-neon .site-lock-screen{background:#050816}.resumeai-neon .site-lock-card{background:#0c1732;border-color:#29446f;color:#e7f2ff;box-shadow:0 0 50px rgba(0,225,255,.12)}.resumeai-neon .site-lock-card h1{color:#f3f8ff}.resumeai-neon .site-lock-card p{color:#98acd0}.resumeai-neon .site-lock-card input{background:#071126;color:#fff;border-color:#2d4a77}
 @media(max-width:700px){.settings-voice-card{grid-template-columns:1fr auto}.voice-preview-setting{grid-column:1/-1;width:100%}}
@@ -1557,8 +1554,6 @@ html.resumeai-dark .mock-report-answer,
 html.resumeai-dark .mock-report-evaluation { background:#101f31 !important; border-color:#29415b !important; }
 html.resumeai-dark .mock-score-pill,
 html.resumeai-dark .mock-report-score { background:#172943 !important; color:#eaf4ff !important; }
-html.resumeai-dark .google-login-btn,
-html.resumeai-dark .voice-preview-setting { background:#101f31 !important; color:#eaf4ff !important; border-color:#2a4663 !important; }
 
 /* The site has only Light and Dark themes. */
 html.resumeai-dark .workspace-sidebar,
@@ -2310,3 +2305,124 @@ html.resumeai-dark .settings-account-premium>b {
   color:#ffd77b !important;
   border:1px solid #6b5730 !important;
 }
+
+/* Career Lab: actionable, local-first workspace */
+.career-lab-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-bottom:18px}.career-lab-card{padding:24px;border:1px solid var(--border,#dbe4ef);border-radius:20px;background:var(--card,#fff);box-shadow:0 10px 30px rgba(31,55,88,.06);margin-bottom:18px}.career-lab-card h2{margin:6px 0 18px}.career-lab-card label{display:flex;flex-direction:column;gap:7px;margin:12px 0;font-weight:700}.career-lab-card textarea,.career-lab-card input{width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:12px;padding:12px;font:inherit;background:transparent;color:inherit}.career-lab-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}.career-lab-metrics div{padding:14px;border-radius:14px;background:rgba(99,102,241,.08);text-align:center}.career-lab-metrics strong,.career-lab-metrics small{display:block}.career-lab-metrics strong{font-size:24px}.career-keyword-list{padding:14px;border-radius:14px;background:rgba(245,158,11,.10)}.career-keyword-list p{line-height:1.7}.career-check-row{display:flex!important;flex-direction:row!important;align-items:flex-start;gap:10px;font-weight:500!important}.career-check-row input{width:auto!important;margin-top:4px}.career-check-progress{margin-top:16px;font-weight:800}.career-roadmap{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.career-roadmap article{padding:16px;border-radius:14px;background:rgba(59,130,246,.07)}.career-roadmap p{line-height:1.5}.eyebrow{letter-spacing:.08em;font-size:11px;font-weight:800;opacity:.72}@media(max-width:900px){.career-lab-grid,.career-roadmap{grid-template-columns:1fr 1fr}}@media(max-width:600px){.career-lab-grid,.career-roadmap{grid-template-columns:1fr}.career-lab-card{padding:16px}.career-lab-metrics strong{font-size:20px}}
+
+
+/* Resume Health Center */
+.health-center-module { display: grid; gap: 18px; }
+.health-hero { display:flex; justify-content:space-between; align-items:center; gap:24px; padding:24px; border:1px solid var(--border-color, #dfe5ef); border-radius:20px; background:linear-gradient(135deg, rgba(79,70,229,.10), rgba(14,165,233,.07)); }
+.health-hero h2 { margin:8px 0; }
+.health-hero p { margin:0; max-width:650px; opacity:.8; }
+.health-score { min-width:130px; text-align:center; border-radius:18px; padding:18px; background:var(--card-bg, #fff); border:1px solid var(--border-color, #dfe5ef); }
+.health-score strong { font-size:42px; line-height:1; display:block; }
+.health-score span { opacity:.65; }
+.health-score small { display:block; margin-top:8px; opacity:.7; }
+.health-actions { display:flex; gap:10px; flex-wrap:wrap; }
+.health-check-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.health-check-card { display:flex; justify-content:space-between; gap:12px; padding:16px; border:1px solid var(--border-color, #dfe5ef); border-radius:16px; background:var(--card-bg, #fff); }
+.health-check-card strong { display:block; }
+.health-check-card p { margin:8px 0 0; opacity:.75; font-size:.92rem; }
+.health-check-card > span { font-size:.78rem; font-weight:700; white-space:nowrap; }
+.health-check-card.is-ok { border-color:rgba(22,163,74,.35); }
+.health-check-card.is-ok > span { color:#16a34a; }
+.health-check-card.is-missing > span { color:#d97706; }
+.health-next ol { margin:0; padding-left:22px; display:grid; gap:8px; }
+@media (max-width:700px) { .health-hero { flex-direction:column; align-items:stretch; } .health-score { width:auto; } .health-check-grid { grid-template-columns:1fr; } }
+
+/* ResumeAI 5.4 palette themes: all components inherit the palette without changing layout. */
+html.resumeai-ocean body{background:#eef7ff;color:#153a5b}html.resumeai-ocean .workspace-shell{background:#eef7ff}html.resumeai-ocean .workspace-topbar,html.resumeai-ocean .workspace-sidebar{background:#0b3557;border-color:#2a638a}html.resumeai-ocean .workspace-topnav button,html.resumeai-ocean .workspace-sidebar>button{color:#d9efff}html.resumeai-ocean .workspace-topnav button.active,html.resumeai-ocean .workspace-sidebar>button.active{background:#1a78a8;color:#fff}html.resumeai-ocean .professional-module,html.resumeai-ocean .workspace-card,html.resumeai-ocean .settings-content-card{background:linear-gradient(180deg,#ffffff,#edf8ff)!important;border-color:#b8d9ec}html.resumeai-ocean .theme-choice,html.resumeai-ocean .settings-select-card,html.resumeai-ocean .security-panel{background:#f5fbff;color:#173f60;border-color:#b8d9ec}
+html.resumeai-forest body{background:#f0f8f2;color:#183c2a}html.resumeai-forest .workspace-shell{background:#f0f8f2}html.resumeai-forest .workspace-topbar,html.resumeai-forest .workspace-sidebar{background:#173e31;border-color:#376b54}html.resumeai-forest .workspace-topnav button,html.resumeai-forest .workspace-sidebar>button{color:#dff5e7}html.resumeai-forest .workspace-topnav button.active,html.resumeai-forest .workspace-sidebar>button.active{background:#2c7957;color:#fff}html.resumeai-forest .professional-module,html.resumeai-forest .workspace-card,html.resumeai-forest .settings-content-card{background:linear-gradient(180deg,#ffffff,#effaf2)!important;border-color:#b9dcc5}html.resumeai-forest .theme-choice,html.resumeai-forest .settings-select-card,html.resumeai-forest .security-panel{background:#f6fcf7;color:#204d36;border-color:#b9dcc5}
+html.resumeai-ocean .workspace-content,html.resumeai-forest .workspace-content{min-height:100vh}
+
+/* Functional tool sync and theme-safe controls */
+.tool-heading-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.tool-heading-row label{margin:0!important}.tool-sync-note{font-size:.88rem;opacity:.8;margin:8px 0}.career-lab-card textarea,.career-lab-card input{background:var(--surface-2,#fff)!important;color:var(--text,#172033)!important;border-color:var(--border,#cbd5e1)!important}.career-lab-card button,.health-actions button{cursor:pointer}html[data-resumeai-theme="dark"] .career-lab-card textarea,html[data-resumeai-theme="dark"] .career-lab-card input{background:#172033!important;color:#f8fafc!important;border-color:#475569!important}html[data-resumeai-theme="ocean"] .career-lab-card textarea,html[data-resumeai-theme="ocean"] .career-lab-card input{background:#f5fbff!important;color:#153a5b!important}html[data-resumeai-theme="forest"] .career-lab-card textarea,html[data-resumeai-theme="forest"] .career-lab-card input{background:#f6fcf7!important;color:#183c2a!important}
+
+/* V5.7 stability overrides: keep all four themes readable across shared modules. */
+html[data-resumeai-theme="light"] body { background:#f6f7fb; color:#182038; }
+html[data-resumeai-theme="dark"] body { background:#0b1220; color:#e7eef8; }
+html[data-resumeai-theme="ocean"] body { background:#eef7ff; color:#153a5b; }
+html[data-resumeai-theme="forest"] body { background:#f0f8f2; color:#183c2a; }
+html.resumeai-dark .professional-module, html.resumeai-dark .career-lab-card, html.resumeai-dark .health-check-card, html.resumeai-dark .health-hero, html.resumeai-dark .career-lab-card input, html.resumeai-dark .career-lab-card textarea { background:#111d30 !important; color:#e7eef8 !important; border-color:#29415e !important; }
+html.resumeai-dark .career-lab-card h2, html.resumeai-dark .career-lab-card label, html.resumeai-dark .career-lab-card b, html.resumeai-dark .health-check-card strong, html.resumeai-dark .health-check-card p { color:#e7eef8 !important; }
+html.resumeai-ocean .professional-module, html.resumeai-ocean .career-lab-card, html.resumeai-ocean .health-check-card, html.resumeai-ocean .health-hero { background:#f8fcff !important; color:#153a5b !important; border-color:#b8d9ec !important; }
+html.resumeai-forest .professional-module, html.resumeai-forest .career-lab-card, html.resumeai-forest .health-check-card, html.resumeai-forest .health-hero { background:#f8fcf9 !important; color:#183c2a !important; border-color:#b9dcc5 !important; }
+
+/* ResumeAI 5.8 visual system — reference-inspired premium workspace */
+:root{--rai-navy:#071d3b;--rai-blue:#216ff0;--rai-cyan:#21b6d7;--rai-ink:#172b49;--rai-muted:#6e8097;--rai-line:#e1eaf4;--rai-card:#fff;--rai-page:#f3f7fc}
+html,body,#root{min-height:100%;}body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+.workspace-shell{background:radial-gradient(ellipse at 78% 4%,rgba(56,137,255,.08),transparent 36%),linear-gradient(135deg,#f7faff,#eff5fc 58%,#f8fbff)!important;color:var(--rai-ink)}
+.workspace-topbar{height:76px;padding:0 28px;background:rgba(255,255,255,.94);backdrop-filter:blur(16px);border-bottom:1px solid #e6edf6;box-shadow:0 4px 20px rgba(18,47,84,.035)}
+.workspace-brand-logo{width:44px;height:44px;border-radius:14px;background:linear-gradient(145deg,#286ff4,#4c42d9);box-shadow:0 7px 18px rgba(40,111,244,.22)}
+.workspace-brand b{font-size:21px;letter-spacing:-.6px}.workspace-brand b span{color:#20a9b9}
+.workspace-topnav{gap:5px}.workspace-topnav button{font-size:11px;padding:11px 12px;color:#52657e;border-radius:11px;transition:all .2s}
+.workspace-topnav button.active{background:#eaf2ff;color:#1765d8;box-shadow:inset 0 0 0 1px #d7e6ff}
+.workspace-sidebar{top:76px;width:252px;padding:25px 15px;background:linear-gradient(180deg,#071b38 0%,#09264c 55%,#0b315d 100%);box-shadow:12px 0 32px rgba(8,31,61,.09)}
+.workspace-brand-mini{padding:0 10px 22px;margin-bottom:16px;border-bottom:1px solid rgba(191,216,245,.17)}
+.workspace-brand-robot{width:42px;height:42px;border-radius:13px;background:linear-gradient(145deg,#2675fa,#5646e8);display:grid;place-items:center}
+.workspace-brand-mini b{font-size:18px;letter-spacing:-.4px;color:#fff}.workspace-brand-mini small{color:#9db6d5}
+.workspace-side-label{padding:4px 12px 11px;color:#829bb9;font-size:9px;letter-spacing:1.5px}
+.workspace-sidebar>button{padding:13px 14px;margin:4px 0;border-radius:11px;color:#d5e3f4;font-size:12px;gap:13px;transition:all .18s}
+.workspace-sidebar>button.active{background:linear-gradient(110deg,#1c73f2,#245bd0);box-shadow:0 8px 20px rgba(24,105,232,.26);color:#fff}
+.workspace-sidebar>button:hover{background:rgba(65,139,246,.17);transform:translateX(2px)}
+.workspace-side-footer{margin-top:22px;padding:17px 13px;border-top:1px solid rgba(191,216,245,.16);color:#9eb4cf}.workspace-side-footer b{color:#fff}
+.workspace-content{margin-left:252px;min-height:calc(100vh - 76px)}
+.workspace-page{width:min(1320px,95%);padding:34px 0 64px}
+.workspace-welcome h1,.workspace-page>h1{font-size:29px;letter-spacing:-.9px;color:#142b49}
+.workspace-card,.workspace-stat,.professional-module,.career-lab-card,.analytics-card,.application-card-pro,.settings-card{border:1px solid #e2eaf4;border-radius:17px;background:#fff;box-shadow:0 8px 26px rgba(25,62,105,.045);transition:box-shadow .2s,border-color .2s,transform .2s}
+.workspace-card:hover,.career-lab-card:hover,.analytics-card:hover{box-shadow:0 13px 32px rgba(25,62,105,.075)}
+.professional-module{padding:27px;background:linear-gradient(180deg,#fff,#fbfdff)!important}
+.workspace-primary{background:linear-gradient(110deg,#2478f3,#205bd6);box-shadow:0 7px 18px rgba(33,111,240,.2);border-radius:11px}
+.secondary-action{border:1px solid #d5e3f3;background:#f7faff;color:#2465b8;border-radius:10px;padding:10px 14px;font-weight:750}
+.career-lab-card{padding:23px}.career-lab-card h2{font-size:17px;color:#183452;letter-spacing:-.3px}.career-lab-card textarea,.career-lab-card input{border-color:#d8e3ef;background:#fbfdff!important;color:#203954!important;line-height:1.55;transition:border-color .2s,box-shadow .2s}.career-lab-card textarea:focus,.career-lab-card input:focus{outline:0;border-color:#4d91ef;box-shadow:0 0 0 3px rgba(48,126,231,.12)}
+.career-lab-metrics div{background:linear-gradient(145deg,#eff6ff,#f8fbff);border:1px solid #e0ebf8}.career-lab-metrics strong{color:#1d69ce}.career-keyword-list{background:#fff8e9;border:1px solid #f6e8c7}.career-roadmap article{background:linear-gradient(145deg,#eff6ff,#f8fbff);border:1px solid #e0eaf7}.career-roadmap article b{color:#205fae}.health-hero{background:linear-gradient(120deg,#edf7ff,#f2fbff 55%,#effbf6);border-color:#d9eaf5}.health-score{border-radius:18px;background:#fff;box-shadow:0 8px 24px rgba(28,82,131,.07)}.health-score strong{color:#1e9c78}.health-check-card{background:#fff;border-radius:14px;border-color:#e1eaf3}.health-check-card.is-ok{background:linear-gradient(120deg,#f1fbf6,#fff);border-color:#d5efe1}.health-check-card.is-missing{background:linear-gradient(120deg,#fff9ed,#fff);border-color:#f2e4c9}
+.theme-choice-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.theme-choice{min-height:112px;padding:17px;border-radius:15px}.theme-choice.selected{border-color:#4389ee;background:#f2f7ff}
+/* Four coherent theme palettes applied to all workspace modules. */
+html.resumeai-dark .workspace-shell{background:radial-gradient(ellipse at 80% 0%,rgba(42,105,190,.13),transparent 40%),#07111f!important;color:#e7f0fb!important}
+html.resumeai-dark .workspace-topbar{background:#0c1929;border-color:#1f344d}html.resumeai-dark .workspace-brand b,html.resumeai-dark .workspace-account{color:#e7f0fb}html.resumeai-dark .workspace-brand small{color:#8da5c1}
+html.resumeai-dark .workspace-page h1,html.resumeai-dark .career-lab-card h2,html.resumeai-dark .workspace-card-title{color:#eaf2fc!important}
+html.resumeai-dark .workspace-card,html.resumeai-dark .workspace-stat,html.resumeai-dark .professional-module,html.resumeai-dark .career-lab-card,html.resumeai-dark .analytics-card,html.resumeai-dark .application-card-pro,html.resumeai-dark .settings-card{background:#101e30!important;border-color:#263d58!important;color:#e4edf8!important}
+html.resumeai-dark .career-lab-card textarea,html.resumeai-dark .career-lab-card input{background:#0a1727!important;color:#edf5ff!important;border-color:#304964!important}
+html.resumeai-dark .career-lab-metrics div,html.resumeai-dark .career-roadmap article{background:#142943;border-color:#294866}html.resumeai-dark .career-keyword-list{background:#302817;border-color:#5a4825}html.resumeai-dark .health-hero{background:linear-gradient(120deg,#12263b,#142d35);border-color:#29445c}html.resumeai-dark .health-score,html.resumeai-dark .health-check-card{background:#14243a;border-color:#2c455f;color:#e7f0fb}
+html.resumeai-dark .theme-choice{background:#0c1929;color:#e7f0fb;border-color:#2b425e}html.resumeai-dark .theme-choice small{color:#9bb0c7}
+html.resumeai-ocean .workspace-shell{background:linear-gradient(135deg,#eff8ff,#eaf5fc 60%,#f4fbff)!important}html.resumeai-ocean .workspace-sidebar{background:linear-gradient(180deg,#062b4c,#0b426b)}html.resumeai-ocean .workspace-sidebar>button.active{background:linear-gradient(110deg,#148ac0,#176ab4)}html.resumeai-ocean .workspace-primary{background:linear-gradient(110deg,#168fc2,#1768b6)}html.resumeai-ocean .career-lab-metrics div,html.resumeai-ocean .career-roadmap article{background:#eaf7ff;border-color:#cfe7f5}
+html.resumeai-forest .workspace-shell{background:linear-gradient(135deg,#f1faf4,#edf7f0 60%,#f8fcf8)!important}html.resumeai-forest .workspace-sidebar{background:linear-gradient(180deg,#102f29,#174a3b)}html.resumeai-forest .workspace-sidebar>button.active{background:linear-gradient(110deg,#23875d,#176b50)}html.resumeai-forest .workspace-primary{background:linear-gradient(110deg,#23875d,#176b50)}html.resumeai-forest .career-lab-metrics div,html.resumeai-forest .career-roadmap article{background:#edf9f1;border-color:#d3ead9}
+@media(max-width:700px){.workspace-sidebar{width:70px}.workspace-content{margin-left:70px}.workspace-topbar{height:64px}.workspace-sidebar{top:64px}.workspace-page{width:92%}.theme-choice-grid{grid-template-columns:1fr}}
+
+/* V5.9 — Reference layout pass: persistent navy rail + clean utility header */
+.workspace-topbar{position:sticky;top:0;margin-left:252px;width:calc(100% - 252px);height:72px;padding:0 28px;display:flex;justify-content:flex-end;gap:18px;background:rgba(255,255,255,.96)!important;border-bottom:1px solid #e5edf6;z-index:40}
+.workspace-brand{display:none!important}
+.workspace-global-search{display:flex;align-items:center;gap:10px;width:min(420px,42vw);height:42px;margin-right:auto;padding:0 14px;border:1px solid #e1e9f3;border-radius:12px;background:#f9fbfe;color:#7d8da3}
+.workspace-global-search>span{font-size:22px;line-height:1}
+.workspace-global-search input{width:100%;border:0;outline:0;background:transparent;color:#243b59;font:inherit;font-size:12px}
+.workspace-global-search input::placeholder{color:#96a4b7}
+.workspace-topnav{display:none!important}
+.workspace-sidebar{top:0!important;width:252px!important;padding:25px 15px!important;background:linear-gradient(180deg,#071b38 0%,#09264c 58%,#0b315d 100%)!important}
+.workspace-content{margin-left:252px!important;min-height:calc(100vh - 72px)}
+.workspace-page{width:min(1320px,95%);padding-top:28px}
+.dashboard-reference-page .dashboard-topline{display:none}
+.dashboard-reference-page .dashboard-reference-grid{grid-template-columns:minmax(0,1fr) 320px;gap:22px}
+.dashboard-hero-card,.dashboard-side-card{box-shadow:0 12px 34px rgba(25,55,92,.065);border-color:#e2eaf4}
+.dashboard-hero-card{padding:30px 28px 26px}
+.dashboard-score-orbit{box-shadow:0 0 0 8px #f3f8fd,0 16px 38px rgba(35,132,210,.13)}
+.dashboard-insight-row>div{transition:transform .18s ease,box-shadow .18s ease}
+.dashboard-insight-row>div:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(25,55,92,.08)}
+.dashboard-analysis-row{cursor:pointer}
+.dashboard-analysis-row:hover{background:#f7faff}
+.workspace-notification-btn{border:0!important;background:#f3f7fc!important;border-radius:11px!important;width:40px;height:40px}
+.workspace-account{border:1px solid #e3eaf3!important;background:#fff!important;border-radius:12px!important;padding:7px 10px!important}
+html.resumeai-dark .workspace-topbar{background:#0c1929!important;border-color:#1f344d!important}
+html.resumeai-dark .workspace-global-search{background:#101f33;border-color:#29415e;color:#a9bdd3}
+html.resumeai-dark .workspace-global-search input{color:#edf5ff}
+html.resumeai-dark .workspace-notification-btn{background:#14263c!important;color:#e7eef8}
+html.resumeai-dark .workspace-account{background:#132137!important;border-color:#29405e!important;color:#e6eef8!important}
+html.resumeai-ocean .workspace-topbar{background:#fff!important;border-color:#d8eaf5!important}
+html.resumeai-forest .workspace-topbar{background:#fff!important;border-color:#dcebe0!important}
+@media(max-width:1050px){.workspace-topbar{margin-left:220px;width:calc(100% - 220px);padding:0 18px}.workspace-sidebar{width:220px!important}.workspace-content{margin-left:220px!important}.dashboard-reference-page .dashboard-reference-grid{grid-template-columns:1fr}.dashboard-side-column{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){.workspace-topbar{margin-left:70px;width:calc(100% - 70px);height:64px;padding:0 10px;gap:8px}.workspace-global-search{width:auto;flex:1;height:38px;margin-right:0;padding:0 9px}.workspace-global-search input{font-size:10px}.workspace-sidebar{top:0!important;width:70px!important;padding:18px 8px!important}.workspace-content{margin-left:70px!important}.workspace-page{width:92%;padding-top:20px}.dashboard-reference-page .dashboard-reference-grid{grid-template-columns:1fr}.dashboard-side-column{grid-template-columns:1fr}.workspace-account{padding:5px!important}.workspace-notification-btn{width:34px;height:34px}}
+
+/* Refined ResumeAI brand mark and voice capability note */
+.workspace-brand-logo{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(145deg,#eaf4ff,#eeeaff);color:#3978d6;font-size:28px;font-weight:900;box-shadow:0 8px 22px rgba(54,112,190,.16)}
+.workspace-brand-robot{color:#fff;font-size:26px!important;background:linear-gradient(145deg,#4e9cf6,#8b72ef)!important}
+.voice-capability-note{grid-column:1/-1;color:#75869a;font-size:11px;line-height:1.5}
