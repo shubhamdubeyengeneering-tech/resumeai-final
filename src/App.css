@@ -2393,10 +2393,6 @@ html.resumeai-forest .workspace-shell{background:linear-gradient(135deg,#f1faf4,
 /* V5.9 — Reference layout pass: persistent navy rail + clean utility header */
 .workspace-topbar{position:sticky;top:0;margin-left:252px;width:calc(100% - 252px);height:72px;padding:0 28px;display:flex;justify-content:flex-end;gap:18px;background:rgba(255,255,255,.96)!important;border-bottom:1px solid #e5edf6;z-index:40}
 .workspace-brand{display:none!important}
-.workspace-global-search{display:flex;align-items:center;gap:10px;width:min(420px,42vw);height:42px;margin-right:auto;padding:0 14px;border:1px solid #e1e9f3;border-radius:12px;background:#f9fbfe;color:#7d8da3}
-.workspace-global-search>span{font-size:22px;line-height:1}
-.workspace-global-search input{width:100%;border:0;outline:0;background:transparent;color:#243b59;font:inherit;font-size:12px}
-.workspace-global-search input::placeholder{color:#96a4b7}
 .workspace-topnav{display:none!important}
 .workspace-sidebar{top:0!important;width:252px!important;padding:25px 15px!important;background:linear-gradient(180deg,#071b38 0%,#09264c 58%,#0b315d 100%)!important}
 .workspace-content{margin-left:252px!important;min-height:calc(100vh - 72px)}
@@ -2413,14 +2409,12 @@ html.resumeai-forest .workspace-shell{background:linear-gradient(135deg,#f1faf4,
 .workspace-notification-btn{border:0!important;background:#f3f7fc!important;border-radius:11px!important;width:40px;height:40px}
 .workspace-account{border:1px solid #e3eaf3!important;background:#fff!important;border-radius:12px!important;padding:7px 10px!important}
 html.resumeai-dark .workspace-topbar{background:#0c1929!important;border-color:#1f344d!important}
-html.resumeai-dark .workspace-global-search{background:#101f33;border-color:#29415e;color:#a9bdd3}
-html.resumeai-dark .workspace-global-search input{color:#edf5ff}
 html.resumeai-dark .workspace-notification-btn{background:#14263c!important;color:#e7eef8}
 html.resumeai-dark .workspace-account{background:#132137!important;border-color:#29405e!important;color:#e6eef8!important}
 html.resumeai-ocean .workspace-topbar{background:#fff!important;border-color:#d8eaf5!important}
 html.resumeai-forest .workspace-topbar{background:#fff!important;border-color:#dcebe0!important}
 @media(max-width:1050px){.workspace-topbar{margin-left:220px;width:calc(100% - 220px);padding:0 18px}.workspace-sidebar{width:220px!important}.workspace-content{margin-left:220px!important}.dashboard-reference-page .dashboard-reference-grid{grid-template-columns:1fr}.dashboard-side-column{grid-template-columns:1fr 1fr}}
-@media(max-width:700px){.workspace-topbar{margin-left:70px;width:calc(100% - 70px);height:64px;padding:0 10px;gap:8px}.workspace-global-search{width:auto;flex:1;height:38px;margin-right:0;padding:0 9px}.workspace-global-search input{font-size:10px}.workspace-sidebar{top:0!important;width:70px!important;padding:18px 8px!important}.workspace-content{margin-left:70px!important}.workspace-page{width:92%;padding-top:20px}.dashboard-reference-page .dashboard-reference-grid{grid-template-columns:1fr}.dashboard-side-column{grid-template-columns:1fr}.workspace-account{padding:5px!important}.workspace-notification-btn{width:34px;height:34px}}
+@media(max-width:700px){.workspace-topbar{margin-left:70px;width:calc(100% - 70px);height:64px;padding:0 10px;gap:8px}.workspace-sidebar{top:0!important;width:70px!important;padding:18px 8px!important}.workspace-content{margin-left:70px!important}.workspace-page{width:92%;padding-top:20px}.dashboard-reference-page .dashboard-reference-grid{grid-template-columns:1fr}.dashboard-side-column{grid-template-columns:1fr}.workspace-account{padding:5px!important}.workspace-notification-btn{width:34px;height:34px}}
 
 /* Refined ResumeAI brand mark and voice capability note */
 .workspace-brand-logo{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(145deg,#eaf4ff,#eeeaff);color:#3978d6;font-size:28px;font-weight:900;box-shadow:0 8px 22px rgba(54,112,190,.16)}

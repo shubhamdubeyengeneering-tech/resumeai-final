@@ -48,7 +48,13 @@ from reportlab.platypus import (
 )
 from reportlab.lib.utils import ImageReader
 
-load_dotenv()
+# Load secrets from the backend folder first, then the project root.
+# Works whether Uvicorn is started from the repository root or src/backend.
+_BACKEND_DIR = Path(__file__).resolve().parent
+_PROJECT_ROOT = _BACKEND_DIR.parents[1]
+load_dotenv(_BACKEND_DIR / ".env", override=False)
+load_dotenv(_PROJECT_ROOT / ".env", override=False)
+load_dotenv(override=False)
 
 from auth import get_current_user, get_db
 
@@ -101,6 +107,40 @@ if GEMINI_API_KEY and genai is not None:
     gemini_client = genai.Client(
         api_key=GEMINI_API_KEY
     )
+
+
+@app.get("/ai-health")
+async def ai_health():
+    """Non-secret diagnostic: never returns the API key or any part of it."""
+    configured_model = os.getenv("RESUMEAI_GEMINI_MODEL", "gemini-3.8-flash").strip() or "gemini-3.8-flash"
+    configured = bool(gemini_client and types is not None)
+    return {
+        "success": configured,
+        "api_key_configured": bool(GEMINI_API_KEY),
+        "google_genai_installed": bool(genai is not None and types is not None),
+        "model": configured_model,
+        "note": "Configuration check only; it does not send a Gemini generation request.",
+    }
+
+
+@app.post("/ai-health/test")
+async def ai_health_test():
+    """Send a tiny real request to Gemini without exposing credentials."""
+    try:
+        response = await asyncio.to_thread(
+            gemini_generate,
+            "Reply with exactly: ResumeAI Gemini connection successful.",
+        )
+        text = (getattr(response, "text", None) or "").strip()
+        if not text:
+            return {"success": False, "message": "Gemini returned an empty response."}
+        return {"success": True, "model": os.getenv("RESUMEAI_GEMINI_MODEL", "gemini-3.8-flash"), "response": text[:240]}
+    except Exception as exc:
+        message = str(exc)
+        if GEMINI_API_KEY:
+            message = message.replace(GEMINI_API_KEY, "[REDACTED]")
+        print("Gemini connection test error:", repr(exc))
+        return {"success": False, "message": message[:1200] or "Gemini request failed."}
 
 
 # =========================================================
@@ -350,6 +390,28 @@ async def extract_resume_text(
             extract_from_docx,
             data,
         )
+
+    if extension == ".pptx":
+        def _extract_pptx(payload: bytes) -> str:
+            try:
+                from pptx import Presentation
+                presentation = Presentation(io.BytesIO(payload))
+                chunks = []
+                for slide in presentation.slides:
+                    for shape in slide.shapes:
+                        if getattr(shape, "has_text_frame", False):
+                            value = shape.text.strip()
+                            if value:
+                                chunks.append(value)
+                        if getattr(shape, "has_table", False):
+                            for row in shape.table.rows:
+                                cells = [cell.text.strip() for cell in row.cells if cell.text.strip()]
+                                if cells:
+                                    chunks.append(" | ".join(cells))
+                return clean_text("\n".join(chunks))
+            except Exception as exc:
+                raise ValueError("The PPTX file could not be read. Please re-save it as PDF or DOCX and try again.") from exc
+        return await asyncio.to_thread(_extract_pptx, data)
 
     if extension == ".doc":
         return await asyncio.to_thread(extract_from_doc, data)
@@ -2089,16 +2151,18 @@ def gemini_generate(
         )
 
     configured = os.getenv("RESUMEAI_GEMINI_MODEL", "gemini-3.8-flash").strip() or "gemini-3.8-flash"
-    # Keep the fast production model first. The lite fallback is attempted only
-    # when the primary model/API request fails, so normal requests do not pay
-    # for retries or extra latency.
+    # Fall back across currently supported stable Flash models if a model is
+    # unavailable to this API project.
     models = []
-    for candidate in (configured, "gemini-3.5-flash-lite"):
+    for candidate in (configured, "gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash-lite"):
         if candidate and candidate not in models:
             models.append(candidate)
 
+    # Gemini 3.x models reject legacy sampling controls such as temperature.
+    # Keep the request compatible with the current Gemini 3.x API. The
+    # temperature argument remains in this helper's signature for callers,
+    # but is intentionally not sent to Gemini.
     config_kwargs = {
-        "temperature": temperature,
         "max_output_tokens": 900,
     }
     # Gemini 3.x supports a low thinking level, which is appropriate for this
@@ -3733,6 +3797,7 @@ async def analyze_resume(
         ".pdf",
         ".doc",
         ".docx",
+        ".pptx",
         ".rtf",
         ".odt",
         ".jpg",
@@ -3751,7 +3816,7 @@ async def analyze_resume(
         return {
             "success": False,
             "message": (
-                "PDF, DOC, DOCX, RTF, ODT, JPG, JPEG, PNG, WEBP and TXT resume files are supported."
+                "PDF, DOC, DOCX, PPTX, RTF, ODT, JPG, JPEG, PNG, WEBP and TXT resume files are supported."
             ),
         }
 
@@ -3790,7 +3855,7 @@ async def analyze_resume(
             return {
                 "success": False,
                 "message": (
-                    "This file does not appear to be a resume. Please upload a valid resume in PDF, DOC, DOCX, RTF, ODT, JPG, JPEG, PNG, WEBP or TXT format."
+                    "This file does not appear to be a resume. Please upload a valid resume in PDF, DOC, DOCX, PPTX, RTF, ODT, JPG, JPEG, PNG, WEBP or TXT format."
                 ),
             }
 
@@ -3868,7 +3933,7 @@ async def analyze_resume(
         return {
             "success": False,
             "message": (
-                "We could not process this resume. Please try another clear PDF, DOC, DOCX, RTF, ODT, JPG, JPEG, PNG, WEBP or TXT resume."
+                "We could not process this resume. Please try another clear PDF, DOC, DOCX, PPTX, RTF, ODT, JPG, JPEG, PNG, WEBP or TXT resume."
             ),
         }
 
@@ -4324,11 +4389,12 @@ async def enhance_resume(
             repr(exc),
         )
 
+        safe_message = str(exc) or "Unknown generation error."
+        if GEMINI_API_KEY:
+            safe_message = safe_message.replace(GEMINI_API_KEY, "[REDACTED]")
         return {
             "success": False,
-            "message": (
-                "Professional resume generation failed. Please try again."
-            ),
+            "message": f"Professional resume generation failed: {safe_message[:900]}",
         }
 
 

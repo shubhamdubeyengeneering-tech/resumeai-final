@@ -88,7 +88,7 @@ Object.assign(UI_TRANSLATIONS, {
      
   "Email notifications": "ईमेल सूचनाएं", "Weekly career summary": "साप्ताहिक करियर सारांश", "Important account and feature updates.": "महत्वपूर्ण अकाउंट और फीचर अपडेट।",
   "AI Interview Voice": "एआई इंटरव्यू आवाज़", "Choose whether the AI interviewer speaks and which voice style it uses.": "चुनें कि एआई इंटरव्यूअर बोले या नहीं और कौन-सी आवाज़ शैली इस्तेमाल करे।",
-  "Female voice": "महिला आवाज़", "Male voice": "पुरुष आवाज़", "Test Voice": "आवाज़ जांचें", "Resume-grounded feedback": "रिज्यूमे-आधारित फीडबैक", "Adaptive mock interviews": "अनुकूली मॉक इंटरव्यू", "Multilingual chat": "बहुभाषी चैट", "Evidence-aware suggestions": "प्रमाण-आधारित सुझाव",
+  "Female voice": "महिला आवाज़", "Test Voice": "आवाज़ जांचें", "Resume-grounded feedback": "रिज्यूमे-आधारित फीडबैक", "Adaptive mock interviews": "अनुकूली मॉक इंटरव्यू", "Multilingual chat": "बहुभाषी चैट", "Evidence-aware suggestions": "प्रमाण-आधारित सुझाव",
   "Security PIN": "सुरक्षा PIN", "Website Lock": "वेबसाइट लॉक", "Enable Lock": "लॉक चालू करें", "Disable Lock": "लॉक बंद करें", "Turn Off Lock": "लॉक बंद करें", "Change PIN": "PIN बदलें", "Remove PIN": "PIN हटाएं", "Create Website PIN": "वेबसाइट PIN बनाएं",
   "Create a 4-12 digit PIN": "4-12 अंकों का PIN बनाएं", "Confirm PIN": "PIN की पुष्टि करें", "Current PIN": "वर्तमान PIN", "New PIN": "नया PIN", "Confirm New PIN": "नए PIN की पुष्टि करें",
   "Your PIN is never displayed or included in normal settings auto-save.": "आपका PIN कभी दिखाया नहीं जाता और सामान्य सेटिंग्स ऑटो-सेव में शामिल नहीं होता।",
@@ -689,20 +689,17 @@ function WorkspaceModules({ page, currentUser, onNavigate, resumeJobId, onLogout
   const [profileEditing, setProfileEditing] = useState(false);
   const [settings, setSettings] = useState(() => {
     let savedTheme = "light";
-    let savedVoiceGender = "female";
     let savedVoiceLanguage = "English";
     let savedVoiceEnabled = true;
     try {
       const candidate = localStorage.getItem("resumeai_theme");
       if (["light", "dark"].includes(candidate)) savedTheme = candidate;
-      const gender = localStorage.getItem("resumeai_voice_gender");
-      if (["male", "female"].includes(gender)) savedVoiceGender = gender;
       const voiceLanguage = localStorage.getItem("resumeai_voice_language");
       if (["English", "Hindi"].includes(voiceLanguage)) savedVoiceLanguage = voiceLanguage;
       const voiceEnabled = localStorage.getItem("resumeai_voice_enabled");
       if (voiceEnabled !== null) savedVoiceEnabled = voiceEnabled === "true";
     } catch {}
-    return { email_notifications: true, weekly_summary: true, language: "English", theme: savedTheme, voice_enabled: savedVoiceEnabled, voice_language: savedVoiceLanguage, voice_gender: savedVoiceGender, lock_enabled: false, lock_pin: "" };
+    return { email_notifications: true, weekly_summary: true, language: "English", theme: savedTheme, voice_enabled: savedVoiceEnabled, voice_language: savedVoiceLanguage, voice_gender: "female", lock_enabled: false, lock_pin: "" };
   });
   const [analytics, setAnalytics] = useState(null);
   const [premium, setPremium] = useState(null);
@@ -745,7 +742,7 @@ function WorkspaceModules({ page, currentUser, onNavigate, resumeJobId, onLogout
         const safeLanguage = incoming.language === "Hindi" || storedLanguage === "Hindi" ? "Hindi" : "English";
         setSettings(prev => ({ ...prev, ...incoming, theme: safeTheme, language: safeLanguage,
           voice_enabled: currentUser ? (incoming.voice_enabled ?? prev.voice_enabled) : prev.voice_enabled,
-          voice_gender: currentUser ? (incoming.voice_gender === "male" ? "male" : "female") : prev.voice_gender,
+          voice_gender: "female",
           voice_language: currentUser ? (incoming.voice_language === "Hindi" ? "Hindi" : "English") : prev.voice_language
         }));
         setSecurity(prev => ({...prev, enabled: !!sec?.lock_enabled, configured: !!sec?.lock_configured, mode: null}));
@@ -767,7 +764,7 @@ function WorkspaceModules({ page, currentUser, onNavigate, resumeJobId, onLogout
         const saved = d.settings || {};
         setSettings(prev => ({ ...prev,
           voice_enabled: saved.voice_enabled ?? prev.voice_enabled,
-          voice_gender: saved.voice_gender === "male" ? "male" : (saved.voice_gender === "female" ? "female" : prev.voice_gender),
+          voice_gender: "female",
           voice_language: saved.voice_language === "Hindi" ? "Hindi" : (saved.voice_language === "English" ? "English" : prev.voice_language)
         }));
       }).catch(() => {});
@@ -776,11 +773,11 @@ function WorkspaceModules({ page, currentUser, onNavigate, resumeJobId, onLogout
 
   useEffect(() => {
     try {
-      localStorage.setItem("resumeai_voice_gender", settings.voice_gender === "male" ? "male" : "female");
+      localStorage.setItem("resumeai_voice_gender", "female");
       localStorage.setItem("resumeai_voice_language", settings.voice_language === "Hindi" ? "Hindi" : "English");
       localStorage.setItem("resumeai_voice_enabled", String(settings.voice_enabled !== false));
     } catch {}
-  }, [settings.voice_gender, settings.voice_language, settings.voice_enabled]);
+  }, [settings.voice_language, settings.voice_enabled]);
 
   useEffect(() => {
     const theme = ["light", "dark"].includes(settings.theme) ? settings.theme : "light";
@@ -833,36 +830,55 @@ function WorkspaceModules({ page, currentUser, onNavigate, resumeJobId, onLogout
     recognition.start();
   }
 
-  function speakAIQuestion(text = mockSession?.question, voiceOptions = {}) {
+  async function speakAIQuestion(text = mockSession?.question, voiceOptions = {}) {
     if (!text || !settings.voice_enabled || !window.speechSynthesis) return;
     try {
       window.speechSynthesis.cancel();
+      // Some browsers populate the voice list asynchronously after page load.
+      let voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
+      if (!voices.length && window.speechSynthesis.addEventListener) {
+        voices = await new Promise(resolve => {
+          let settled = false;
+          const finish = () => {
+            if (settled) return;
+            settled = true;
+            window.speechSynthesis.removeEventListener?.("voiceschanged", onChanged);
+            resolve(window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : []);
+          };
+          const onChanged = () => finish();
+          window.speechSynthesis.addEventListener("voiceschanged", onChanged, { once: true });
+          window.setTimeout(finish, 1200);
+        });
+      }
       const utterance = new SpeechSynthesisUtterance(text);
-      const voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
       const selectedLanguage = voiceOptions.language || mockSession?.language || mockLanguage;
       const wantedLang = selectedLanguage === "Hindi" ? "hi-IN" : "en-IN";
       const wantedBase = wantedLang.slice(0, 2).toLowerCase();
-      const gender = voiceOptions.gender || settings.voice_gender || "female";
       const matching = voices.filter(v => (v.lang || "").toLowerCase().startsWith(wantedBase));
-      // The browser API does not expose voice gender. Only choose a voice when
-      // its installed voice name gives a reasonably clear gender signal.
-      const genderNames = selectedLanguage === "Hindi"
-        ? (gender === "male" ? /\b(madhur|hemant|ravi|aditya|amit|male)\b/i : /\b(swara|neerja|veena|aditi|priya|kavya|ananya|female)\b/i)
-        : (gender === "male" ? /\b(david|guy|mark|daniel|james|aaron|alex|george|oliver|ryan|fred|michael|matthew|liam|thomas|prabhat|male)\b/i : /\b(zira|samantha|susan|karen|hazel|aria|jenny|emma|olivia|victoria|moira|tessa|fiona|ava|linda|julia|sara|neerja|female)\b/i);
-      const candidates = matching.filter(v => genderNames.test(v.name || ""));
+      // Female-only mode: prefer recognizably named female voices when the
+      // browser exposes them; otherwise use the best available voice for the
+      // requested language (the browser API does not standardize voice gender).
+      const femaleNames = selectedLanguage === "Hindi"
+        ? /\b(swara|neerja|veena|aditi|priya|kavya|ananya|female)\b/i
+        : /\b(zira|samantha|susan|karen|hazel|aria|jenny|emma|olivia|victoria|moira|tessa|fiona|ava|linda|julia|sara|neerja|female)\b/i;
+      const namedMatch = matching.filter(v => femaleNames.test(v.name || ""));
+      const candidates = namedMatch.length ? namedMatch : matching;
       const selectedVoice = candidates.sort((a,b) => {
-        const score = v => (v.lang?.toLowerCase() === wantedLang.toLowerCase() ? 2 : 0) + (/google|microsoft|apple/i.test(v.name || "") ? 1 : 0);
+        const score = v => (v.lang?.toLowerCase() === wantedLang.toLowerCase() ? 4 : 0) + (/google|microsoft|apple/i.test(v.name || "") ? 2 : 0) + (v.default ? 1 : 0);
         return score(b) - score(a);
       })[0];
       if (!selectedVoice) {
         setAiSpeaking(false);
-        setMessage(`Your device/browser does not provide a clearly identifiable ${gender} ${selectedLanguage} voice. Add or enable a matching voice in device speech settings; ResumeAI will not silently use the opposite voice.`);
+        setMessage(`No ${selectedLanguage} speech voice is installed or available in this browser. Enable a ${selectedLanguage} voice in Windows language and speech settings, then reload ResumeAI.`);
         return;
       }
+      if (!namedMatch.length) {
+        setMessage(`Using the available ${selectedLanguage} voice. Your browser does not identify voice gender, so a female voice cannot be independently verified on this device.`);
+      }
       utterance.voice = selectedVoice;
-      utterance.lang = wantedLang;
+      utterance.lang = selectedVoice.lang || wantedLang;
       utterance.rate = 0.9;
-      utterance.pitch = gender === "male" ? 0.92 : 1.0;
+      utterance.pitch = 1.08;
       utterance.volume = 1;
       utterance.onstart = () => setAiSpeaking(true);
       utterance.onend = () => setAiSpeaking(false);
@@ -876,7 +892,7 @@ function WorkspaceModules({ page, currentUser, onNavigate, resumeJobId, onLogout
     const previewText = previewLanguage === "Hindi"
       ? "नमस्ते! यह ResumeAI की आवाज़ का परीक्षण है।"
       : "Hello! This is the ResumeAI voice test.";
-    speakAIQuestion(previewText, { language: previewLanguage, gender: settings.voice_gender });
+    speakAIQuestion(previewText, { language: previewLanguage });
   }
 
   useEffect(() => {
@@ -884,7 +900,7 @@ function WorkspaceModules({ page, currentUser, onNavigate, resumeJobId, onLogout
       const timer = setTimeout(() => speakAIQuestion(mockSession.question), 250);
       return () => clearTimeout(timer);
     }
-  }, [mockSession?.question, mockSession?.language, mockLanguage, mockMode, settings.voice_enabled, settings.voice_gender, page]);
+  }, [mockSession?.question, mockSession?.language, mockLanguage, mockMode, settings.voice_enabled, page]);
 
   useEffect(() => () => {
     try { window.speechSynthesis?.cancel(); } catch {}
@@ -923,7 +939,7 @@ function WorkspaceModules({ page, currentUser, onNavigate, resumeJobId, onLogout
         const saved = (await api("/api/settings")).settings || {};
         setSettings(prev => ({ ...prev,
           voice_enabled: saved.voice_enabled ?? prev.voice_enabled,
-          voice_gender: saved.voice_gender === "male" ? "male" : (saved.voice_gender === "female" ? "female" : prev.voice_gender),
+          voice_gender: "female",
           voice_language: saved.voice_language === "Hindi" ? "Hindi" : (saved.voice_language === "English" ? "English" : prev.voice_language)
         }));
       }
@@ -1198,7 +1214,7 @@ function WorkspaceModules({ page, currentUser, onNavigate, resumeJobId, onLogout
   setSettings(prev => ({...prev, language: value}));
   try { localStorage.setItem("resumeai_ui_language", value); } catch {}
   window.dispatchEvent(new CustomEvent("resumeai-language-updated", { detail: value }));
-}}><option>English</option><option>Hindi</option></select></label><div className="settings-voice-card"><div><span>🎙️</span><div><strong>AI Interview Voice</strong><small>Choose the test language and preferred voice style.</small></div></div><label className="toggle"><input type="checkbox" checked={settings.voice_enabled} onChange={e=>setSettings({...settings,voice_enabled:e.target.checked})}/><span/></label><select aria-label="Test voice language" value={settings.voice_language || "English"} onChange={e=>setSettings({...settings,voice_language:e.target.value})}><option value="English">English</option><option value="Hindi">Hindi</option></select><select aria-label="Preferred voice gender" value={settings.voice_gender} onChange={e=>setSettings({...settings,voice_gender:e.target.value})}><option value="female">Female voice</option><option value="male">Male voice</option></select><button type="button" className="voice-preview-setting" onClick={previewVoice}>▶ Test Voice</button><small className="voice-capability-note">Voice gender is selected from matching voices installed on your device. If no matching voice is available, ResumeAI shows a warning instead of switching gender.</small></div><div className="ai-capability-grid"><span>🧠 Resume-grounded feedback</span><span>🎤 Adaptive mock interviews</span><span>💬 Multilingual chat</span><span>🔎 Evidence-aware suggestions</span></div></div>}
+}}><option>English</option><option>Hindi</option></select></label><div className="settings-voice-card"><div><span>🎙️</span><div><strong>AI Interview Voice</strong><small>Female voice for English and Hindi interview practice.</small></div></div><label className="toggle"><input type="checkbox" checked={settings.voice_enabled} onChange={e=>setSettings({...settings,voice_enabled:e.target.checked})}/><span/></label><select aria-label="Test voice language" value={settings.voice_language || "English"} onChange={e=>setSettings({...settings,voice_language:e.target.value})}><option value="English">English</option><option value="Hindi">Hindi</option></select><button type="button" className="voice-preview-setting" onClick={previewVoice}>▶ Test Voice</button><small className="voice-capability-note">Female voice is selected when your browser provides one for the chosen language. Voice availability depends on Windows and browser speech packages.</small></div><div className="ai-capability-grid"><span>🧠 Resume-grounded feedback</span><span>🎤 Adaptive mock interviews</span><span>💬 Multilingual chat</span><span>🔎 Evidence-aware suggestions</span></div></div>}
           {settingsTab === "Security" && (
             <div className="settings-pane">
               <div className="settings-pane-head">
@@ -1712,7 +1728,9 @@ function App() {
   async function fetchAIAdvice(jobId) {
     setAiStatus("processing");
 
-    for (let i = 0; i < 40; i += 1) {
+    // AI generation can take longer for multi-page/OCR resumes. Keep polling
+    // long enough for the backend worker instead of failing after ~30 seconds.
+    for (let i = 0; i < 180; i += 1) {
       try {
         const response =
           await fetch(
@@ -1740,6 +1758,7 @@ function App() {
         if (
           data.status === "failed"
         ) {
+          setAiAdvice({ success: false, message: data.message || "Gemini AI feedback failed. Check the backend error details." });
           setAiStatus("failed");
           return;
         }
@@ -1751,11 +1770,12 @@ function App() {
         (resolve) =>
           setTimeout(
             resolve,
-            750
+            1000
           )
       );
     }
 
+    setAiAdvice({ success: false, message: "AI feedback is taking longer than expected. The rule-based report remains available; please retry in a moment." });
     setAiStatus("failed");
   }
 
@@ -2567,7 +2587,6 @@ function App() {
     <div className="app-shell workspace-shell">
       <header className="workspace-topbar">
         <button className="workspace-brand" onClick={() => setActivePage("dashboard")}><span className="workspace-brand-logo">✦</span><span><b>Resume<span>AI</span></b><small>Career Intelligence</small></span></button>
-        <div className="workspace-global-search"><span>⌕</span><input aria-label="Search ResumeAI" placeholder="Search resumes, jobs, tools..." onKeyDown={e => { if (e.key === "Enter") runDashboardSearch(e.currentTarget.value); }} /></div>
         <nav className="workspace-topnav"><button className={activePage === "dashboard" ? "active" : ""} onClick={() => setActivePage("dashboard")}>⌂ Dashboard</button><button className={activePage === "mocks" ? "active" : ""} onClick={() => setActivePage("mocks")}>▣ Mocks</button><button className={activePage === "jobs" ? "active" : ""} onClick={() => setActivePage("jobs")}>▣ Jobs</button><button className={activePage === "resources" ? "active" : ""} onClick={() => setActivePage("resources")}>▤ Resources</button><button className={activePage === "analytics" ? "active" : ""} onClick={() => setActivePage("analytics")}>⌁ Analytics</button></nav>
         <div className="workspace-notification-wrap">
           <button className="workspace-notification-btn" onClick={() => setNotificationOpen(v => !v)} aria-label="Notifications">🔔{notifications.some(n => !n.read) && <i>{notifications.filter(n => !n.read).length > 9 ? "9+" : notifications.filter(n => !n.read).length}</i>}</button>
@@ -3238,11 +3257,10 @@ function App() {
 
             {aiStatus ===
               "failed" && (
-              <p className="muted">
-                AI advisor could not complete
-                right now. Your rule-based report
-                is still available.
-              </p>
+              <div className="muted" role="status">
+                <p>AI advisor could not complete. Your rule-based report is still available.</p>
+                {aiAdvice?.message && <p className="error-message">Details: {aiAdvice.message}</p>}
+              </div>
             )}
           </section>
 
